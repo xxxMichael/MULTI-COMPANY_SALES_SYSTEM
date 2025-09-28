@@ -1,5 +1,7 @@
 package com.multicompany.sales_system.model;
 
+import com.multicompany.sales_system.model.enums.EstadoProducto;
+import com.multicompany.sales_system.model.enums.TipoProducto;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -24,10 +26,10 @@ public class Producto {
     private Boolean disponibilidad = true;
 
     @Enumerated(EnumType.STRING)
-    private Tipo tipo;
+    private TipoProducto tipo;
 
     @Enumerated(EnumType.STRING)
-    private Estado estado = Estado.ACTIVO;
+    private EstadoProducto estado = EstadoProducto.ACTIVO;
 
     private LocalDateTime fechaPublicacion = LocalDateTime.now();
 
@@ -37,7 +39,4 @@ public class Producto {
 
     @OneToMany(mappedBy = "producto", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FotoProducto> fotos;
-
-    public enum Tipo { PRODUCTO, SERVICIO }
-    public enum Estado { ACTIVO, OCULTO, PROHIBIDO, APELADO, ELIMINADO }
 }
