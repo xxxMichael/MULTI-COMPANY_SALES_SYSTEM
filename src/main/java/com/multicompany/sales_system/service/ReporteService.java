@@ -16,7 +16,10 @@ public interface ReporteService {
 
     ReporteResponseDTO crearReporte(ReporteRequestDTO requestDTO);
 
-    // ReporteResponseDTO actualizarReporte(Long idReporte, ReporteRequestDTO requestDTO);
+    // ReporteResponseDTO actualizarReporte(Long idReporte, ReporteRequestDTO
+    // requestDTO);
 
     void eliminarReporte(Long idReporte);
+
+    List<ReporteResponseDTO> listarPorAnioYMes(int year, int month);
 }
