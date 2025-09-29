@@ -46,14 +46,21 @@ public class ReporteController {
 
     // @PutMapping("/{id}")
     // public ResponseEntity<ReporteResponseDTO> actualizarReporte(
-    //         @PathVariable Long id,
-    //         @Valid @RequestBody ReporteRequestDTO requestDTO) {
-    //     return ResponseEntity.ok(reporteService.actualizarReporte(id, requestDTO));
+    // @PathVariable Long id,
+    // @Valid @RequestBody ReporteRequestDTO requestDTO) {
+    // return ResponseEntity.ok(reporteService.actualizarReporte(id, requestDTO));
     // }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarReporte(@PathVariable Long id) {
         reporteService.eliminarReporte(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/filtros/anio-mes")
+    public ResponseEntity<List<ReporteResponseDTO>> listarPorAnioYMes(
+            @RequestParam int year,
+            @RequestParam int month) {
+        return ResponseEntity.ok(reporteService.listarPorAnioYMes(year, month));
     }
 }

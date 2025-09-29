@@ -113,29 +113,35 @@ public class ReporteServiceImpl implements ReporteService {
     }
 
     // @Override
-    // public ReporteResponseDTO actualizarReporte(Long idReporte, ReporteRequestDTO requestDTO) {
-    //     Reporte reporteExistente = reporteRepository.findById(idReporte)
-    //             .orElseThrow(() -> new RuntimeException("Reporte no encontrado"));
+    // public ReporteResponseDTO actualizarReporte(Long idReporte, ReporteRequestDTO
+    // requestDTO) {
+    // Reporte reporteExistente = reporteRepository.findById(idReporte)
+    // .orElseThrow(() -> new RuntimeException("Reporte no encontrado"));
 
-    //     // Actualizar campos
-    //     reporteExistente.setAccionTomada(requestDTO.getAccionTomada());
-    //     reporteExistente.setComentario(requestDTO.getComentario());
+    // // Actualizar campos
+    // reporteExistente.setAccionTomada(requestDTO.getAccionTomada());
+    // reporteExistente.setComentario(requestDTO.getComentario());
 
-    //     // Si se cambian las relaciones, buscar nuevas entidades
-    //     if (!reporteExistente.getIncidencia().getIdIncidencia().equals(requestDTO.getIdIncidencia())) {
-    //         Incidencia incidencia = incidenciaRepository.findById(requestDTO.getIdIncidencia())
-    //                 .orElseThrow(() -> new RuntimeException("Incidencia no encontrada"));
-    //         reporteExistente.setIncidencia(incidencia);
-    //     }
+    // // Si se cambian las relaciones, buscar nuevas entidades
+    // if
+    // (!reporteExistente.getIncidencia().getIdIncidencia().equals(requestDTO.getIdIncidencia()))
+    // {
+    // Incidencia incidencia =
+    // incidenciaRepository.findById(requestDTO.getIdIncidencia())
+    // .orElseThrow(() -> new RuntimeException("Incidencia no encontrada"));
+    // reporteExistente.setIncidencia(incidencia);
+    // }
 
-    //     if (!reporteExistente.getModerador().getIdUsuario().equals(requestDTO.getIdModerador())) {
-    //         Usuario moderador = usuarioRepository.findById(requestDTO.getIdModerador())
-    //                 .orElseThrow(() -> new RuntimeException("Moderador no encontrado"));
-    //         reporteExistente.setModerador(moderador);
-    //     }
+    // if
+    // (!reporteExistente.getModerador().getIdUsuario().equals(requestDTO.getIdModerador()))
+    // {
+    // Usuario moderador = usuarioRepository.findById(requestDTO.getIdModerador())
+    // .orElseThrow(() -> new RuntimeException("Moderador no encontrado"));
+    // reporteExistente.setModerador(moderador);
+    // }
 
-    //     Reporte reporteActualizado = reporteRepository.save(reporteExistente);
-    //     return toResponseDTO(reporteActualizado);
+    // Reporte reporteActualizado = reporteRepository.save(reporteExistente);
+    // return toResponseDTO(reporteActualizado);
     // }
 
     @Override
@@ -143,6 +149,26 @@ public class ReporteServiceImpl implements ReporteService {
         Reporte reporte = reporteRepository.findById(idReporte)
                 .orElseThrow(() -> new RuntimeException("Reporte no encontrado"));
         reporteRepository.delete(reporte);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReporteResponseDTO> listarPorAnioYMes(int year, int month) {
+        // Validar que el mes esté entre 1 y 12
+        if (month < 1 || month > 12) {
+            throw new IllegalArgumentException("El mes debe estar entre 1 y 12");
+        }
+
+        // Validar que el año sea razonable (ej: entre 2020 y 2030)
+        int currentYear = java.time.Year.now().getValue();
+        if (year < 2020 || year > currentYear + 1) {
+            throw new IllegalArgumentException("El año debe ser válido");
+        }
+
+        return reporteRepository.findByYearAndMonth(year, month)
+                .stream()
+                .map(this::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
 }
