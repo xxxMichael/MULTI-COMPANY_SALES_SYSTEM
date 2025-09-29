@@ -2,10 +2,21 @@ package com.multicompany.sales_system.service;
 
 import java.util.List;
 
-import com.multicompany.sales_system.model.Reporte;
+import com.multicompany.sales_system.dto.report.ReporteRequestDTO;
+import com.multicompany.sales_system.dto.report.ReporteResponseDTO;
 
 public interface ReporteService {
-    Reporte crearReporte(Reporte reporte);
+    List<ReporteResponseDTO> listarTodos();
 
-    List<Reporte> obtenerPorIncidencia(Long incidenciaId);
+    List<ReporteResponseDTO> listarPorIncidencia(Long idIncidencia);
+
+    List<ReporteResponseDTO> listarPorModerador(Long idModerador);
+
+    ReporteResponseDTO obtenerPorId(Long idReporte);
+
+    ReporteResponseDTO crearReporte(ReporteRequestDTO requestDTO);
+
+    // ReporteResponseDTO actualizarReporte(Long idReporte, ReporteRequestDTO requestDTO);
+
+    void eliminarReporte(Long idReporte);
 }
