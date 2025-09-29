@@ -1,29 +1,24 @@
 package com.multicompany.sales_system.service;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.multicompany.sales_system.model.Incidencia;
-import com.multicompany.sales_system.model.Producto;
-import com.multicompany.sales_system.repository.IncidenciaRepository;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
-@Service
-@RequiredArgsConstructor
-public class IncidenciaService {
+public interface IncidenciaService {
 
-    private final IncidenciaRepository incidenciaRepository;
+    // Listar todas las incidencias pendientes
+    List<Incidencia> listarPendientes();
 
-    @Transactional
-    public Incidencia crearIncidenciaPorDeteccion(Producto producto, String motivo, String descripcion) {
-        Incidencia inc = new Incidencia();
-        inc.setProducto(producto);
-        inc.setMotivo(motivo);
-        inc.setDescripcion(descripcion);
-        inc.setEstado(Incidencia.Estado.PENDIENTE);
-        inc.setFechaRegistro(LocalDateTime.now());
-        return incidenciaRepository.save(inc);
-    }
+    // Marcar incidencia como atendida
+    Incidencia marcarAtendida(Long idIncidencia);
+
+    // Descartar incidencia
+    Incidencia descartar(Long idIncidencia);
+
+    // Crear incidencia automáticamente (detección de producto prohibido)
+    Incidencia crearPorDeteccion(Long idProducto, Long idUsuarioReporta, String motivo, String descripcion);
+
+    List<Incidencia> listarAtendidas();
+
+    List<Incidencia> listarDescartadas();
 }
