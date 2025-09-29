@@ -106,6 +106,66 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
     }
 
+    // IMPLEMENTACIÓN DE NUEVOS MÉTODOS CON FILTROS
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProductsByPriceRange(Double minPrice, Double maxPrice, Pageable pageable) {
+        Page<Producto> productos = productRepository.findByPrecioBetween(minPrice, maxPrice, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProductsByMinPrice(Double minPrice, Pageable pageable) {
+        Page<Producto> productos = productRepository.findByPrecioGreaterThanEqual(minPrice, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProductsByMaxPrice(Double maxPrice, Pageable pageable) {
+        Page<Producto> productos = productRepository.findByPrecioLessThanEqual(maxPrice, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProductsByTipo(TipoProducto tipo, Pageable pageable) {
+        Page<Producto> productos = productRepository.findByTipoAndEstadoActivo(tipo, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProductsByUbicacion(String ubicacion, Pageable pageable) {
+        String ubicacionPattern = "%" + ubicacion + "%";
+        Page<Producto> productos = productRepository.findByUbicacionContaining(ubicacionPattern, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> searchProductsWithPagination(String searchTerm, Pageable pageable) {
+        String searchPattern = "%" + searchTerm + "%";
+        Page<Producto> productos = productRepository.findByNombreOrDescripcionContaining(searchPattern, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProductsWithFilters(Double minPrice, Double maxPrice, TipoProducto tipo,
+            String searchTerm, String ubicacion, Boolean disponibilidad,
+            Pageable pageable) {
+        // Agregar comodines para búsquedas LIKE
+        String searchPattern = searchTerm != null ? "%" + searchTerm + "%" : null;
+        String ubicacionPattern = ubicacion != null ? "%" + ubicacion + "%" : null;
+
+        Page<Producto> productos = productRepository.findWithFilters(minPrice, maxPrice, tipo, searchPattern,
+                ubicacionPattern, disponibilidad, pageable);
+        return productos.map(this::convertToResponseDTO);
+    }
+
     private ProductResponseDTO convertToResponseDTO(Producto producto) {
         ProductResponseDTO dto = new ProductResponseDTO();
         dto.setIdProducto(producto.getIdProducto());
