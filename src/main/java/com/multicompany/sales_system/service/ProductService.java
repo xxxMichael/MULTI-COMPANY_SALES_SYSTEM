@@ -25,29 +25,29 @@ public interface ProductService {
     List<ProductResponseDTO> searchProducts(String searchTerm);
 
     // NUEVOS MÉTODOS CON FILTROS
-    
+
     // Filtros por precio
     Page<ProductResponseDTO> getProductsByPriceRange(Double minPrice, Double maxPrice, Pageable pageable);
-    
+
     Page<ProductResponseDTO> getProductsByMinPrice(Double minPrice, Pageable pageable);
-    
+
     Page<ProductResponseDTO> getProductsByMaxPrice(Double maxPrice, Pageable pageable);
-    
+
     // Filtros por tipo
     Page<ProductResponseDTO> getProductsByTipo(TipoProducto tipo, Pageable pageable);
-    
+
     // Filtros por ubicación
     Page<ProductResponseDTO> getProductsByUbicacion(String ubicacion, Pageable pageable);
-    
+
     // Búsqueda con paginación
     Page<ProductResponseDTO> searchProductsWithPagination(String searchTerm, Pageable pageable);
-    
+
     // Filtro combinado (el más potente)
-    Page<ProductResponseDTO> getProductsWithFilters(Double minPrice, 
-                                                   Double maxPrice, 
-                                                   TipoProducto tipo, 
-                                                   String searchTerm, 
-                                                   String ubicacion, 
-                                                   Boolean disponibilidad, 
-                                                   Pageable pageable);
+    Page<ProductResponseDTO> getProductsWithFilters(Double minPrice,
+            Double maxPrice,
+            TipoProducto tipo,
+            String searchTerm,
+            String ubicacion,
+            Boolean disponibilidad,
+            Pageable pageable);
 }
