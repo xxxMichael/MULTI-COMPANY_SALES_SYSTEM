@@ -1,9 +1,10 @@
-package com.multicompany.sales_system.service;
+package com.multicompany.sales_system.service.impl;
 
 import org.springframework.stereotype.Service;
 
 import com.multicompany.sales_system.model.Reporte;
 import com.multicompany.sales_system.repository.ReporteRepository;
+import com.multicompany.sales_system.service.ReporteService;
 
 import java.util.List;
 

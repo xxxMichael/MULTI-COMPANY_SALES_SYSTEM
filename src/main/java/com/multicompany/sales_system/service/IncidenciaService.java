@@ -1,24 +1,27 @@
 package com.multicompany.sales_system.service;
 
-import com.multicompany.sales_system.model.Incidencia;
-
 import java.util.List;
 
+import com.multicompany.sales_system.dto.incident.IncidenciaRequestDTO;
+import com.multicompany.sales_system.dto.incident.IncidenciaResponseDTO;
+
 public interface IncidenciaService {
+    List<IncidenciaResponseDTO> listarPendientes();
 
-    // Listar todas las incidencias pendientes
-    List<Incidencia> listarPendientes();
+    List<IncidenciaResponseDTO> listarAtendidas();
 
-    // Marcar incidencia como atendida
-    Incidencia marcarAtendida(Long idIncidencia);
+    List<IncidenciaResponseDTO> listarDescartadas();
 
-    // Descartar incidencia
-    Incidencia descartar(Long idIncidencia);
+    List<IncidenciaResponseDTO> listarTodas();
 
-    // Crear incidencia automáticamente (detección de producto prohibido)
-    Incidencia crearPorDeteccion(Long idProducto, Long idUsuarioReporta, String motivo, String descripcion);
+    IncidenciaResponseDTO obtenerPorId(Long idIncidencia);
 
-    List<Incidencia> listarAtendidas();
+    IncidenciaResponseDTO marcarAtendida(Long idIncidencia);
 
-    List<Incidencia> listarDescartadas();
+    IncidenciaResponseDTO descartar(Long idIncidencia);
+
+    IncidenciaResponseDTO crearIncidencia(IncidenciaRequestDTO requestDTO);
+
+    // Método adicional para creación directa (sin DTO)
+    IncidenciaResponseDTO crearPorDeteccion(Long idProducto, Long idUsuarioReporta, String motivo, String descripcion);
 }

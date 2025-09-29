@@ -1,9 +1,11 @@
 package com.multicompany.sales_system.controller;
 
-import org.springframework.web.bind.annotation.*;
-
-import com.multicompany.sales_system.model.Incidencia;
+import com.multicompany.sales_system.dto.incident.IncidenciaRequestDTO;
+import com.multicompany.sales_system.dto.incident.IncidenciaResponseDTO;
 import com.multicompany.sales_system.service.IncidenciaService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -17,43 +19,53 @@ public class IncidenciaController {
         this.incidenciaService = incidenciaService;
     }
 
-    // 🔹 Listar todas las incidencias pendientes
+    @GetMapping
+    public ResponseEntity<List<IncidenciaResponseDTO>> listarTodas() {
+        return ResponseEntity.ok(incidenciaService.listarTodas());
+    }
+
     @GetMapping("/pendientes")
-    public List<Incidencia> listarPendientes() {
-        return incidenciaService.listarPendientes();
+    public ResponseEntity<List<IncidenciaResponseDTO>> listarPendientes() {
+        return ResponseEntity.ok(incidenciaService.listarPendientes());
     }
 
-        // 🔹 Listar todas las incidencias pendientes
     @GetMapping("/atendidas")
-    public List<Incidencia> listarAtendidas() {
-        return incidenciaService.listarAtendidas();
+    public ResponseEntity<List<IncidenciaResponseDTO>> listarAtendidas() {
+        return ResponseEntity.ok(incidenciaService.listarAtendidas());
     }
 
-        // 🔹 Listar todas las incidencias pendientes
     @GetMapping("/descartadas")
-    public List<Incidencia> listarDescartada() {
-        return incidenciaService.listarDescartadas();
+    public ResponseEntity<List<IncidenciaResponseDTO>> listarDescartadas() {
+        return ResponseEntity.ok(incidenciaService.listarDescartadas());
     }
 
-    // 🔹 Marcar incidencia como atendida
-    @PutMapping("/{id}/atender")
-    public Incidencia marcarAtendida(@PathVariable Long id) {
-        return incidenciaService.marcarAtendida(id);
+    @GetMapping("/{id}")
+    public ResponseEntity<IncidenciaResponseDTO> obtenerPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(incidenciaService.obtenerPorId(id));
     }
 
-    // 🔹 Descartar incidencia
-    @PutMapping("/{id}/descartar")
-    public Incidencia descartar(@PathVariable Long id) {
-        return incidenciaService.descartar(id);
+    @PostMapping
+    public ResponseEntity<IncidenciaResponseDTO> crearIncidencia(
+            @Valid @RequestBody IncidenciaRequestDTO requestDTO) {
+        return ResponseEntity.ok(incidenciaService.crearIncidencia(requestDTO));
     }
 
-    // 🔹 Crear incidencia automáticamente (detección de producto prohibido)
-    @PostMapping("/crear-automatico")
-    public Incidencia crearPorDeteccion(
+    @PostMapping("/deteccion")
+    public ResponseEntity<IncidenciaResponseDTO> crearPorDeteccion(
             @RequestParam Long idProducto,
             @RequestParam Long idUsuarioReporta,
             @RequestParam String motivo,
             @RequestParam String descripcion) {
-        return incidenciaService.crearPorDeteccion(idProducto, idUsuarioReporta, motivo, descripcion);
+        return ResponseEntity.ok(incidenciaService.crearPorDeteccion(idProducto, idUsuarioReporta, motivo, descripcion));
+    }
+
+    @PutMapping("/{id}/atender")
+    public ResponseEntity<IncidenciaResponseDTO> marcarAtendida(@PathVariable Long id) {
+        return ResponseEntity.ok(incidenciaService.marcarAtendida(id));
+    }
+
+    @PutMapping("/{id}/descartar")
+    public ResponseEntity<IncidenciaResponseDTO> descartar(@PathVariable Long id) {
+        return ResponseEntity.ok(incidenciaService.descartar(id));
     }
 }
