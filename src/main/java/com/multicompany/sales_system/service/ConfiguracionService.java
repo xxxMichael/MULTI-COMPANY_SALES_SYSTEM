@@ -18,7 +18,7 @@ public class ConfiguracionService {
      * Devuelve la lista de palabras prohibidas, limpias y en minúsculas.
      */
     public List<String> getPalabrasProhibidas() {
-        return configuracionRepository.findByOpcion("FILTRO_PALABRAS")
+        return configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS) // ✅ Usar enum
                 .map(Configuracion::getValor)
                 .map(v -> Arrays.stream(v.split(","))
                         .map(String::trim)

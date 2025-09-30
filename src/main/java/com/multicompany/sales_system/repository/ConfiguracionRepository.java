@@ -1,9 +1,12 @@
 package com.multicompany.sales_system.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
 import com.multicompany.sales_system.model.Configuracion;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
+@Repository
 public interface ConfiguracionRepository extends JpaRepository<Configuracion, Long> {
-    Optional<Configuracion> findByOpcion(String opcion);
+    Optional<Configuracion> findByOpcion(Configuracion.Opcion opcion);
 }
