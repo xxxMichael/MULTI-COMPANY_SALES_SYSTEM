@@ -33,6 +33,8 @@ public class Producto {
 
     private LocalDateTime fechaPublicacion = LocalDateTime.now();
 
+    private LocalDateTime fechaExpiracion; // Fecha de expiración de la publicación
+
     @ManyToOne
     @JoinColumn(name = "id_vendedor")
     private Usuario vendedor;

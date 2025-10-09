@@ -81,4 +81,18 @@ public interface ProductRepository extends JpaRepository<Producto, Long> {
                         @Param("ubicacion") String ubicacion,
                         @Param("disponibilidad") Boolean disponibilidad,
                         Pageable pageable);
+
+        // NUEVOS MÉTODOS PARA GESTIÓN DE ESTADOS Y RESTRICCIONES
+
+        // Buscar productos por estado
+        List<Producto> findByEstado(com.multicompany.sales_system.model.enums.EstadoProducto estado);
+
+        // Buscar productos por estado con paginación
+        Page<Producto> findByEstado(com.multicompany.sales_system.model.enums.EstadoProducto estado, Pageable pageable);
+
+        // Buscar productos expirados
+        @Query("SELECT p FROM Producto p WHERE p.fechaExpiracion IS NOT NULL " +
+                        "AND p.fechaExpiracion < :fechaActual " +
+                        "AND p.estado = com.multicompany.sales_system.model.enums.EstadoProducto.ACTIVO")
+        List<Producto> findProductosExpirados(@Param("fechaActual") java.time.LocalDateTime fechaActual);
 }
