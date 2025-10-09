@@ -22,6 +22,7 @@ public class ProductResponseDTO {
     private String tipo;
     private String estado;
     private LocalDateTime fechaPublicacion;
+    private LocalDateTime fechaExpiracion; // ✅ NUEVO: Fecha de expiración
     private Long idVendedor;
     private String nombreVendedor;
     private List<PhotoResponseDTO> fotos;
