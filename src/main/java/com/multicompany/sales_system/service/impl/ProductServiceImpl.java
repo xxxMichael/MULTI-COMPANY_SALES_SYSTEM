@@ -9,8 +9,9 @@ import com.multicompany.sales_system.model.enums.EstadoProducto;
 import com.multicompany.sales_system.model.enums.TipoProducto;
 import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
+import com.multicompany.sales_system.service.DetectorService;
+import com.multicompany.sales_system.service.IncidenciaService;
 import com.multicompany.sales_system.service.ProductService;
-import com.multicompany.sales_system.service.ProductoRestriccionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,8 +28,9 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
-    private final UsuarioRepository usuarioRepository;
-    private final ProductoRestriccionService productoRestriccionService; // ✅ NUEVO
+    private final UsuarioRepository usuarioRepository; // Agregado
+    private final DetectorService detectorService; // Agregado
+    private final IncidenciaService incidenciaService; // Agregado
 
     @Override
     public ProductResponseDTO createProduct(ProductRequestDTO productRequestDTO) {
@@ -48,21 +50,22 @@ public class ProductServiceImpl implements ProductService {
         producto.setFechaPublicacion(LocalDateTime.now());
         producto.setVendedor(vendedor);
 
-        // ✅ ESTABLECER FECHA DE EXPIRACIÓN (del DTO o por defecto)
-        if (productRequestDTO.getFechaExpiracion() != null) {
-            producto.setFechaExpiracion(productRequestDTO.getFechaExpiracion());
-        } else {
-            productoRestriccionService.establecerFechaExpiracion(producto);
-        }
-
         // ✅ VALIDAR CONTENIDO Y DETERMINAR ESTADO
-        boolean contieneProhibidas = productoRestriccionService.verificarYMarcarProhibidos(producto);
+        boolean contieneProhibidas = validarYProcesarContenido(producto, productRequestDTO);
 
-        if (!contieneProhibidas) {
+        if (contieneProhibidas) {
+            producto.setEstado(EstadoProducto.PROHIBIDO);
+            producto.setDisponibilidad(false);
+        } else {
             producto.setEstado(EstadoProducto.ACTIVO);
         }
 
         Producto savedProduct = productRepository.save(producto);
+
+        // ✅ CREAR INCIDENCIA DESPUÉS DE GUARDAR (cuando tenemos el ID)
+        if (contieneProhibidas) {
+            crearIncidenciaAutomatica(savedProduct);
+        }
 
         return convertToResponseDTO(savedProduct);
     }
@@ -84,9 +87,12 @@ public class ProductServiceImpl implements ProductService {
         producto.setTipo(TipoProducto.valueOf(productRequestDTO.getTipo().toUpperCase()));
 
         // ✅ VALIDAR CONTENIDO Y ACTUALIZAR ESTADO SI ES NECESARIO
-        boolean contieneProhibidas = productoRestriccionService.verificarYMarcarProhibidos(producto);
+        boolean contieneProhibidas = validarYProcesarContenido(producto, productRequestDTO);
 
-        if (!contieneProhibidas && estadoAnterior == EstadoProducto.PROHIBIDO) {
+        if (contieneProhibidas) {
+            producto.setEstado(EstadoProducto.PROHIBIDO);
+            producto.setDisponibilidad(false);
+        } else if (estadoAnterior == EstadoProducto.PROHIBIDO) {
             // Si antes estaba prohibido y ahora está limpio, reactivar
             producto.setEstado(EstadoProducto.ACTIVO);
             producto.setDisponibilidad(true);
@@ -94,10 +100,67 @@ public class ProductServiceImpl implements ProductService {
 
         Producto updatedProduct = productRepository.save(producto);
 
+        // ✅ CREAR INCIDENCIA SI AHORA ESTÁ PROHIBIDO
+        if (contieneProhibidas && estadoAnterior != EstadoProducto.PROHIBIDO) {
+            crearIncidenciaAutomatica(updatedProduct);
+        }
+
         return convertToResponseDTO(updatedProduct);
     }
 
-    // ✅ MÉTODOS CRUD BÁSICOS
+    /**
+     * ✅ MÉTODO NUEVO: Validar contenido y determinar si tiene palabras prohibidas
+     */
+    private boolean validarYProcesarContenido(Producto producto, ProductRequestDTO productRequestDTO) {
+        String textoCompleto = String.join(" ",
+                productRequestDTO.getNombre() != null ? productRequestDTO.getNombre() : "",
+                productRequestDTO.getDescripcion() != null ? productRequestDTO.getDescripcion() : "",
+                productRequestDTO.getUbicacion() != null ? productRequestDTO.getUbicacion() : "").trim();
+
+        if (textoCompleto.isEmpty()) {
+            return false;
+        }
+
+        return detectorService.containsProhibited(textoCompleto);
+    }
+
+    /**
+     * ✅ MÉTODO NUEVO: Crear incidencia automática
+     */
+    private void crearIncidenciaAutomatica(Producto producto) {
+        try {
+            String textoCompleto = String.join(" ",
+                    producto.getNombre() != null ? producto.getNombre() : "",
+                    producto.getDescripcion() != null ? producto.getDescripcion() : "",
+                    producto.getUbicacion() != null ? producto.getUbicacion() : "").trim();
+
+            List<String> palabrasEncontradas = detectorService.findMatchedWords(textoCompleto);
+
+            String motivo = "Contenido inapropiado detectado automáticamente";
+            String descripcion = String.format(
+                    "Se detectaron palabras prohibidas en el producto. " +
+                            "Palabras encontradas: %s. " +
+                            "Producto: %s (ID: %s)",
+                    String.join(", ", palabrasEncontradas),
+                    producto.getNombre(),
+                    producto.getIdProducto());
+
+            // Usar un usuario del sistema como reportante (ajusta el ID según tu
+            // configuración)
+            Long idUsuarioSistema = 1L;
+
+            incidenciaService.crearPorDeteccion(
+                    producto.getIdProducto(),
+                    idUsuarioSistema,
+                    motivo,
+                    descripcion);
+
+        } catch (Exception e) {
+            System.err.println("Error al crear incidencia automática: " + e.getMessage());
+        }
+    }
+
+    // ✅ TODOS LOS DEMÁS MÉTODOS PERMANECEN EXACTAMENTE IGUAL
     @Override
     @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(Long id) {
@@ -211,7 +274,6 @@ public class ProductServiceImpl implements ProductService {
         dto.setTipo(producto.getTipo().name());
         dto.setEstado(producto.getEstado().name());
         dto.setFechaPublicacion(producto.getFechaPublicacion());
-        dto.setFechaExpiracion(producto.getFechaExpiracion()); // ✅ NUEVO
 
         if (producto.getVendedor() != null) {
             dto.setIdVendedor(producto.getVendedor().getIdUsuario());

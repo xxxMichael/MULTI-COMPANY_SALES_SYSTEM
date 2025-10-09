@@ -3,7 +3,6 @@ package com.multicompany.sales_system.dto.product;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
 import jakarta.validation.constraints.*;
 
 @Data
@@ -29,10 +28,6 @@ public class ProductRequestDTO {
 
     @NotNull(message = "El tipo es obligatorio")
     private String tipo;
-
-    // ✅ NUEVO: Fecha de expiración opcional (si no se especifica, se usa valor por
-    // defecto)
-    private java.time.LocalDateTime fechaExpiracion;
 
     @NotNull(message = "El ID del vendedor es obligatorio")
     private Long idVendedor;

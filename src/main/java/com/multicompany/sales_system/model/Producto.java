@@ -33,9 +33,6 @@ public class Producto {
 
     private LocalDateTime fechaPublicacion = LocalDateTime.now();
 
-    // ✅ NUEVO: Campo para caducidad de productos
-    private LocalDateTime fechaExpiracion;
-
     @ManyToOne
     @JoinColumn(name = "id_vendedor")
     private Usuario vendedor;

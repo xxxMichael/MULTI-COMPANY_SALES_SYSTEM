@@ -81,25 +81,4 @@ public interface ProductRepository extends JpaRepository<Producto, Long> {
                         @Param("ubicacion") String ubicacion,
                         @Param("disponibilidad") Boolean disponibilidad,
                         Pageable pageable);
-
-        // NUEVOS MÉTODOS PARA GESTIÓN DE CADUCIDAD
-
-        // Buscar productos expirados
-        @Query("SELECT p FROM Producto p WHERE p.fechaExpiracion <= :fechaActual " +
-                        "AND p.estado = com.multicompany.sales_system.model.enums.EstadoProducto.ACTIVO")
-        List<Producto> findProductosExpirados(@Param("fechaActual") java.time.LocalDateTime fechaActual);
-
-        // Buscar productos próximos a expirar
-        @Query("SELECT p FROM Producto p WHERE p.fechaExpiracion <= :fechaLimite " +
-                        "AND p.fechaExpiracion > CURRENT_TIMESTAMP " +
-                        "AND p.estado = com.multicompany.sales_system.model.enums.EstadoProducto.ACTIVO")
-        List<Producto> findProductosProximosAExpirar(@Param("fechaLimite") java.time.LocalDateTime fechaLimite);
-
-        // MÉTODOS PARA GESTIÓN DE ESTADOS (para apelaciones)
-
-        // Buscar productos por estado
-        List<Producto> findByEstado(com.multicompany.sales_system.model.enums.EstadoProducto estado);
-
-        // Buscar productos por estado con paginación
-        Page<Producto> findByEstado(com.multicompany.sales_system.model.enums.EstadoProducto estado, Pageable pageable);
 }
