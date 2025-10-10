@@ -68,6 +68,12 @@ public class Usuario {
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
+    @Column(name = "recovery_code", length = 255)
+    private String recoveryCode;
+
+    @Column(name = "recovery_code_expires_at")
+    private LocalDateTime recoveryCodeExpiresAt;
+
     // === ÚNICO rol del sistema ===
     @Enumerated(EnumType.STRING)
     @Column(name = "rol", nullable = false, length = 20)

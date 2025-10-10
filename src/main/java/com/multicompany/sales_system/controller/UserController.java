@@ -120,6 +120,24 @@ public ResponseEntity<RegisterResponse> createModerator(
     }
 
     // =========================
+    // Recuperación de contraseña
+    // =========================
+    @PostMapping("/recover-password")
+    public ResponseEntity<Map<String, Object>> recoverPassword(@RequestParam String email) {
+        usuarioService.iniciarRecuperacionContrasena(email);
+        return ResponseEntity.ok(Map.of("message", "Correo de recuperación enviado"));
+    }
+
+    // =========================
+    // Cambio de contraseña por recuperación
+    // =========================
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody com.multicompany.sales_system.dto.user.PasswordResetRequest request) {
+        usuarioService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("message", "Contraseña cambiada correctamente"));
+    }
+
+    // =========================
     // Manejo de errores
     // =========================
     @ExceptionHandler(ResponseStatusException.class)

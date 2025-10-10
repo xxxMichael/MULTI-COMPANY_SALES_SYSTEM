@@ -17,6 +17,8 @@ public interface UsuarioService {
     RegisterResponse crearModerador(AdminCreateModeratorRequest dto);
     @Transactional
     RegisterResponse crearModerador(AdminCreateModeratorRequest dto, String adminKeyHeader);
+    void iniciarRecuperacionContrasena(String correo);
+    void resetPassword(com.multicompany.sales_system.dto.user.PasswordResetRequest request);
 
     LoginResponse login(LoginRequest request);
 }
