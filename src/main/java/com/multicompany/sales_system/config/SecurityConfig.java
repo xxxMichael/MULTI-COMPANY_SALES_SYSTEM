@@ -31,6 +31,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users/verify-email").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/resend-code").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/api/users/check-email").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/users/recover-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/users/reset-password").permitAll()
 
                 // Protegido por rol
                 .requestMatchers(HttpMethod.POST, "/api/users/admin/**")

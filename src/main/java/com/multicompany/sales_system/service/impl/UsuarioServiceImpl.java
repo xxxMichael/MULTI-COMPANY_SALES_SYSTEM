@@ -166,12 +166,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         ev.setExpiresAt(OffsetDateTime.now().plusMinutes(ttlMinutes));
         verifyRepo.save(ev);
 
-        String subject = "[" + appName + "] Verifica tu correo";
-        String body = "Hola " + (user.getNombre() != null ? user.getNombre() : "usuario") + ",\n\n"
-                + "Tu código de verificación es: " + code + "\n"
-                + "Caduca en " + ttlMinutes + " minutos.\n\n"
-                + "Si no solicitaste esto, ignora el mensaje.";
-        mail.sendPlain(user.getCorreo(), subject, body);
+        // Usar el nuevo método del MailService
+        mail.sendVerificationEmail(user.getCorreo(), user.getNombre(), code);
     }
 
     // ==========================
@@ -252,5 +248,49 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     public RegisterResponse crearModerador(AdminCreateModeratorRequest dto, String adminKeyHeader) {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    // ==========================
+    //  Recuperación de contraseña
+    // ==========================
+    @Transactional
+    public void iniciarRecuperacionContrasena(String correo) {
+        Usuario usuario = usuarioRepo.findByCorreoIgnoreCase(correo)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Genera un código/token de recuperación
+        String recoveryCode = codeGen.generateNumeric(); // O UUID.randomUUID().toString()
+        usuario.setRecoveryCode(recoveryCode);
+        usuario.setRecoveryCodeExpiresAt(OffsetDateTime.now().plusMinutes(ttlMinutes).toLocalDateTime());
+        // Log para depuración
+        System.out.println("[RECUPERACION] Usuario: " + usuario.getCorreo() + ", Código: " + recoveryCode + ", Expira: " + usuario.getRecoveryCodeExpiresAt());
+        usuarioRepo.save(usuario);
+        System.out.println("[RECUPERACION] Guardado en BD: " + usuario.getRecoveryCode() + " | " + usuario.getRecoveryCodeExpiresAt());
+
+        // Construye el enlace de recuperación (ajusta la URL según tu frontend)
+        String recoveryLink = "http://localhost:5173/reset-password?code=" + recoveryCode;
+
+        mail.sendPasswordRecoveryEmail(usuario.getCorreo(), usuario.getNombre(), recoveryLink);
+    }
+
+    @Transactional
+    public void resetPassword(com.multicompany.sales_system.dto.user.PasswordResetRequest request) {
+        Usuario usuario = usuarioRepo.findByCorreoIgnoreCase(request.getEmail())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (usuario.getRecoveryCode() == null || usuario.getRecoveryCodeExpiresAt() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No hay código de recuperación activo");
+        }
+        if (!usuario.getRecoveryCode().equals(request.getRecoveryCode())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código de recuperación inválido");
+        }
+        if (usuario.getRecoveryCodeExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El código de recuperación ha expirado");
+        }
+        // Cambia la contraseña y limpia el código
+        usuario.setContrasena(encoder.encode(request.getNewPassword()));
+        usuario.setRecoveryCode(null);
+        usuario.setRecoveryCodeExpiresAt(null);
+        usuarioRepo.save(usuario);
     }
 }
