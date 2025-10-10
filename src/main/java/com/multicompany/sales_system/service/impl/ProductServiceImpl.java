@@ -5,13 +5,13 @@ import com.multicompany.sales_system.dto.product.ProductRequestDTO;
 import com.multicompany.sales_system.dto.product.ProductResponseDTO;
 import com.multicompany.sales_system.model.Producto;
 import com.multicompany.sales_system.model.Usuario;
-import com.multicompany.sales_system.model.enums.EstadoProducto;
 import com.multicompany.sales_system.model.enums.TipoProducto;
 import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
+import com.multicompany.sales_system.service.ProductService;
 import com.multicompany.sales_system.service.DetectorService;
 import com.multicompany.sales_system.service.IncidenciaService;
-import com.multicompany.sales_system.service.ProductService;
+import com.multicompany.sales_system.model.enums.EstadoProducto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,7 +36,8 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponseDTO createProduct(ProductRequestDTO productRequestDTO) {
         // Buscar el vendedor real en la base de datos
         Usuario vendedor = usuarioRepository.findById(productRequestDTO.getIdVendedor())
-                .orElseThrow(() -> new RuntimeException("Vendedor no encontrado con ID: " + productRequestDTO.getIdVendedor()));
+                .orElseThrow(() -> new RuntimeException(
+                        "Vendedor no encontrado con ID: " + productRequestDTO.getIdVendedor()));
 
         Producto producto = new Producto();
         producto.setCodigo(productRequestDTO.getCodigo());
@@ -49,23 +50,27 @@ public class ProductServiceImpl implements ProductService {
         producto.setFechaPublicacion(LocalDateTime.now());
         producto.setVendedor(vendedor);
 
+        // Guardar el producto primero
+        Producto savedProduct = productRepository.save(producto);
+
         // ✅ VALIDAR CONTENIDO Y DETERMINAR ESTADO
-        boolean contieneProhibidas = validarYProcesarContenido(producto, productRequestDTO);
+        boolean contieneProhibidas = validarYProcesarContenido(savedProduct, productRequestDTO);
 
         if (contieneProhibidas) {
-            producto.setEstado(EstadoProducto.PROHIBIDO);
-            producto.setDisponibilidad(false);
+            savedProduct.setEstado(EstadoProducto.PROHIBIDO);
+            savedProduct.setDisponibilidad(false);
         } else {
-            producto.setEstado(EstadoProducto.ACTIVO);
+            savedProduct.setEstado(EstadoProducto.ACTIVO);
         }
 
-        Producto savedProduct = productRepository.save(producto);
-        
+        // Guardar cambios de estado
+        savedProduct = productRepository.save(savedProduct);
+
         // ✅ CREAR INCIDENCIA DESPUÉS DE GUARDAR (cuando tenemos el ID)
         if (contieneProhibidas) {
             crearIncidenciaAutomatica(savedProduct);
         }
-        
+
         return convertToResponseDTO(savedProduct);
     }
 
@@ -73,9 +78,6 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponseDTO updateProduct(Long id, ProductRequestDTO productRequestDTO) {
         Producto producto = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
-
-        // Guardar estado anterior para comparar
-        EstadoProducto estadoAnterior = producto.getEstado();
 
         producto.setCodigo(productRequestDTO.getCodigo());
         producto.setNombre(productRequestDTO.getNombre());
@@ -85,81 +87,25 @@ public class ProductServiceImpl implements ProductService {
         producto.setDisponibilidad(productRequestDTO.getDisponibilidad());
         producto.setTipo(TipoProducto.valueOf(productRequestDTO.getTipo().toUpperCase()));
 
+        Producto updatedProduct = productRepository.save(producto);
+
         // ✅ VALIDAR CONTENIDO Y ACTUALIZAR ESTADO SI ES NECESARIO
-        boolean contieneProhibidas = validarYProcesarContenido(producto, productRequestDTO);
+        EstadoProducto estadoAnterior = updatedProduct.getEstado();
+        boolean contieneProhibidas = validarYProcesarContenido(updatedProduct, productRequestDTO);
 
         if (contieneProhibidas) {
-            producto.setEstado(EstadoProducto.PROHIBIDO);
-            producto.setDisponibilidad(false);
+            updatedProduct.setEstado(EstadoProducto.PROHIBIDO);
+            updatedProduct.setDisponibilidad(false);
         } else if (estadoAnterior == EstadoProducto.PROHIBIDO) {
             // Si antes estaba prohibido y ahora está limpio, reactivar
-            producto.setEstado(EstadoProducto.ACTIVO);
-            producto.setDisponibilidad(true);
+            updatedProduct.setEstado(EstadoProducto.ACTIVO);
+            updatedProduct.setDisponibilidad(true);
         }
 
-        Producto updatedProduct = productRepository.save(producto);
-        
-        // ✅ CREAR INCIDENCIA SI AHORA ESTÁ PROHIBIDO
-        if (contieneProhibidas && estadoAnterior != EstadoProducto.PROHIBIDO) {
-            crearIncidenciaAutomatica(updatedProduct);
-        }
-        
+        // Guardar cambios de estado
+        updatedProduct = productRepository.save(updatedProduct);
+
         return convertToResponseDTO(updatedProduct);
-    }
-
-    /**
-     * ✅ MÉTODO NUEVO: Validar contenido y determinar si tiene palabras prohibidas
-     */
-    private boolean validarYProcesarContenido(Producto producto, ProductRequestDTO productRequestDTO) {
-        String textoCompleto = String.join(" ", 
-            productRequestDTO.getNombre() != null ? productRequestDTO.getNombre() : "",
-            productRequestDTO.getDescripcion() != null ? productRequestDTO.getDescripcion() : "",
-            productRequestDTO.getUbicacion() != null ? productRequestDTO.getUbicacion() : ""
-        ).trim();
-
-        if (textoCompleto.isEmpty()) {
-            return false;
-        }
-
-        return detectorService.containsProhibited(textoCompleto);
-    }
-
-    /**
-     * ✅ MÉTODO NUEVO: Crear incidencia automática
-     */
-    private void crearIncidenciaAutomatica(Producto producto) {
-        try {
-            String textoCompleto = String.join(" ", 
-                producto.getNombre() != null ? producto.getNombre() : "",
-                producto.getDescripcion() != null ? producto.getDescripcion() : "",
-                producto.getUbicacion() != null ? producto.getUbicacion() : ""
-            ).trim();
-
-            List<String> palabrasEncontradas = detectorService.findMatchedWords(textoCompleto);
-            
-            String motivo = "Contenido inapropiado detectado automáticamente";
-            String descripcion = String.format(
-                "Se detectaron palabras prohibidas en el producto. " +
-                "Palabras encontradas: %s. " +
-                "Producto: %s (ID: %s)",
-                String.join(", ", palabrasEncontradas),
-                producto.getNombre(),
-                producto.getIdProducto()
-            );
-
-            // Usar un usuario del sistema como reportante (ajusta el ID según tu configuración)
-            Long idUsuarioSistema = 1L;
-            
-            incidenciaService.crearPorDeteccion(
-                producto.getIdProducto(),
-                idUsuarioSistema,
-                motivo,
-                descripcion
-            );
-            
-        } catch (Exception e) {
-            System.err.println("Error al crear incidencia automática: " + e.getMessage());
-        }
     }
 
     // ✅ TODOS LOS DEMÁS MÉTODOS PERMANECEN EXACTAMENTE IGUAL
@@ -290,5 +236,30 @@ public class ProductServiceImpl implements ProductService {
         }
 
         return dto;
+    }
+
+    // ✅ MÉTODOS AUXILIARES PARA VALIDACIÓN DE CONTENIDO PROHIBIDO
+
+    private boolean validarYProcesarContenido(Producto producto, ProductRequestDTO requestDTO) {
+        // Combinar todo el texto del producto para análisis
+        String contenidoCompleto = (requestDTO.getNombre() != null ? requestDTO.getNombre() : "") + " " +
+                (requestDTO.getDescripcion() != null ? requestDTO.getDescripcion() : "");
+
+        // Usar DetectorService para verificar palabras prohibidas
+        return detectorService.containsProhibited(contenidoCompleto);
+    }
+
+    private void crearIncidenciaAutomatica(Producto producto) {
+        try {
+            // Usar el servicio para crear la incidencia automáticamente
+            incidenciaService.crearPorDeteccion(
+                    producto.getIdProducto(),
+                    producto.getVendedor().getIdUsuario(),
+                    "Contenido prohibido detectado automáticamente",
+                    "El sistema detectó automáticamente contenido prohibido en el producto: " + producto.getNombre());
+        } catch (Exception e) {
+            // Log error pero no fallar la creación del producto
+            System.err.println("Error al crear incidencia automática: " + e.getMessage());
+        }
     }
 }
