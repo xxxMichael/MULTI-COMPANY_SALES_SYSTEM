@@ -4,15 +4,21 @@ import com.multicompany.sales_system.dto.product.ProductRequestDTO;
 import com.multicompany.sales_system.dto.product.ProductResponseDTO;
 import com.multicompany.sales_system.model.enums.TipoProducto;
 import com.multicompany.sales_system.service.ProductService;
+import com.multicompany.sales_system.service.PhotoService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -21,6 +27,51 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final PhotoService photoService;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * Crear producto CON fotos (mínimo 1, máximo 5)
+     * POST /api/products/with-photos
+     */
+    @PostMapping(value = "/with-photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createProductWithPhotos(
+            @RequestPart("productData") String productDataJson,
+            @RequestPart("files") List<MultipartFile> files) {
+        try {
+            // Validar cantidad de fotos
+            if (files == null || files.isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Debe subir al menos 1 foto");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            if (files.size() > 5) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "No puede subir más de 5 fotos");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            // Convertir JSON a DTO
+            ProductRequestDTO productRequestDTO = objectMapper.readValue(productDataJson, ProductRequestDTO.class);
+
+            // Crear el producto
+            ProductResponseDTO createdProduct = productService.createProduct(productRequestDTO);
+
+            // Subir las fotos
+            photoService.uploadMultiplePhotos(createdProduct.getIdProducto(), files);
+
+            // Obtener el producto actualizado con las fotos
+            ProductResponseDTO productWithPhotos = productService.getProductById(createdProduct.getIdProducto());
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(productWithPhotos);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error al crear el producto: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
 
     @PostMapping
     public ResponseEntity<ProductResponseDTO> createProduct(@Valid @RequestBody ProductRequestDTO productRequestDTO) {

@@ -24,5 +24,7 @@ public class ProductResponseDTO {
     private LocalDateTime fechaPublicacion;
     private Long idVendedor;
     private String nombreVendedor;
+    private Long idCategoria;
+    private String nombreCategoria;
     private List<PhotoResponseDTO> fotos;
 }

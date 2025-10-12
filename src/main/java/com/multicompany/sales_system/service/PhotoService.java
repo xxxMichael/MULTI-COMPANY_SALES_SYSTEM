@@ -1,13 +1,22 @@
 package com.multicompany.sales_system.service;
 
-import com.multicompany.sales_system.dto.photo.PhotoRequestDTO;
 import com.multicompany.sales_system.dto.photo.PhotoResponseDTO;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 public interface PhotoService {
 
-    PhotoResponseDTO createPhoto(PhotoRequestDTO photoRequestDTO);
+    /**
+     * Subir una foto para un producto
+     */
+    PhotoResponseDTO uploadPhoto(Long productId, MultipartFile file) throws IOException;
+
+    /**
+     * Subir múltiples fotos para un producto
+     */
+    List<PhotoResponseDTO> uploadMultiplePhotos(Long productId, List<MultipartFile> files) throws IOException;
 
     PhotoResponseDTO getPhotoById(Long id);
 
@@ -15,9 +24,7 @@ public interface PhotoService {
 
     List<PhotoResponseDTO> getPhotosByProductId(Long productId);
 
-    PhotoResponseDTO updatePhoto(Long id, PhotoRequestDTO photoRequestDTO);
+    void deletePhoto(Long id) throws IOException;
 
-    void deletePhoto(Long id);
-
-    void deletePhotosByProductId(Long productId);
+    void deletePhotosByProductId(Long productId) throws IOException;
 }
