@@ -6,6 +6,7 @@ import com.multicompany.sales_system.dto.product.ProductResponseDTO;
 import com.multicompany.sales_system.model.Producto;
 import com.multicompany.sales_system.model.Usuario;
 import com.multicompany.sales_system.model.Categoria;
+import com.multicompany.sales_system.model.FotoProducto;
 import com.multicompany.sales_system.model.enums.TipoProducto;
 import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -137,7 +139,8 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(Long id) {
-        Producto producto = productRepository.findById(id)
+        // ✅ Usar el método con JOIN FETCH para cargar fotos
+        Producto producto = productRepository.findByIdWithFotos(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
         return convertToResponseDTO(producto);
     }
@@ -258,11 +261,17 @@ public class ProductServiceImpl implements ProductService {
             dto.setNombreCategoria(producto.getCategoria().getNombre());
         }
 
-        if (producto.getFotos() != null) {
-            List<PhotoResponseDTO> fotosDTO = producto.getFotos().stream()
+        // ✅ Forzar la inicialización de fotos dentro de la transacción
+        List<FotoProducto> fotos = producto.getFotos();
+        if (fotos != null && !fotos.isEmpty()) {
+            // Forzar la carga accediendo al tamaño
+            fotos.size();
+            List<PhotoResponseDTO> fotosDTO = fotos.stream()
                     .map(foto -> new PhotoResponseDTO(foto.getIdFoto(), foto.getUrl(), producto.getIdProducto()))
                     .collect(Collectors.toList());
             dto.setFotos(fotosDTO);
+        } else {
+            dto.setFotos(new ArrayList<>()); // Lista vacía en lugar de null
         }
 
         return dto;

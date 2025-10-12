@@ -8,8 +8,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Producto, Long> {
+
+        // ✅ MÉTODO ESPECIAL: Buscar producto con fotos cargadas (JOIN FETCH)
+        @Query("SELECT p FROM Producto p LEFT JOIN FETCH p.fotos WHERE p.idProducto = :id")
+        Optional<Producto> findByIdWithFotos(@Param("id") Long id);
+
+        // ✅ Buscar todos los productos con fotos cargadas
+        @Query("SELECT DISTINCT p FROM Producto p LEFT JOIN FETCH p.fotos")
+        List<Producto> findAllWithFotos();
 
         // Métodos existentes
         List<Producto> findByVendedorIdUsuario(Long vendedorId);
