@@ -39,6 +39,10 @@ public class Producto {
     @JoinColumn(name = "id_vendedor")
     private Usuario vendedor;
 
+    @ManyToOne
+    @JoinColumn(name = "id_categoria")
+    private Categoria categoria;
+
     @OneToMany(mappedBy = "producto", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FotoProducto> fotos;
 }
