@@ -3,7 +3,9 @@ package com.multicompany.sales_system.model.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 public enum UsuarioRole {
-    COMPRADOR, VENDEDOR, MODERADOR, ADMIN;
+    USER,
+    MODERATOR,
+    ADMIN;
 
     @JsonCreator
     public static UsuarioRole from(String v) {
