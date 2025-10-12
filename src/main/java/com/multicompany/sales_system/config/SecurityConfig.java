@@ -33,6 +33,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET,  "/api/users/check-email").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/recover-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/reset-password").permitAll()
+                    .requestMatchers("/api/photos/image/**").permitAll()
+
+                    .requestMatchers("/api/photos/image/**").permitAll()
+                    .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**",
+                                     "/swagger-ui.html", "/swagger-resources/**", "/webjars/**",
+                                     "/api-docs/**", "/api-docs", "/actuator/health/**", "/public/**").permitAll()
 
                 // Protegido por rol
                 .requestMatchers(HttpMethod.POST, "/api/users/admin/**")
