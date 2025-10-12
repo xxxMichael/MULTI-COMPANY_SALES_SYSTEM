@@ -5,9 +5,11 @@ import com.multicompany.sales_system.dto.product.ProductRequestDTO;
 import com.multicompany.sales_system.dto.product.ProductResponseDTO;
 import com.multicompany.sales_system.model.Producto;
 import com.multicompany.sales_system.model.Usuario;
+import com.multicompany.sales_system.model.Categoria;
 import com.multicompany.sales_system.model.enums.TipoProducto;
 import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
+import com.multicompany.sales_system.repository.CategoriaRepository;
 import com.multicompany.sales_system.service.ProductService;
 import com.multicompany.sales_system.service.DetectorService;
 import com.multicompany.sales_system.service.IncidenciaService;
@@ -29,6 +31,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final UsuarioRepository usuarioRepository; // Agregado
+    private final CategoriaRepository categoriaRepository; // Agregado
     private final DetectorService detectorService; // Agregado
     private final IncidenciaService incidenciaService; // Agregado
 
@@ -38,6 +41,17 @@ public class ProductServiceImpl implements ProductService {
         Usuario vendedor = usuarioRepository.findById(productRequestDTO.getIdVendedor())
                 .orElseThrow(() -> new RuntimeException(
                         "Vendedor no encontrado con ID: " + productRequestDTO.getIdVendedor()));
+
+        Categoria categoria = categoriaRepository.findById(productRequestDTO.getIdCategoria())
+                .orElseThrow(() -> new RuntimeException(
+                        "Categoría no encontrada con ID: " + productRequestDTO.getIdCategoria()));
+
+        // Validar que la categoría esté activa
+        if (!categoria.getActivo()) {
+            throw new RuntimeException(
+                    "La categoría '" + categoria.getNombre()
+                            + "' está desactivada. No se pueden crear productos en categorías inactivas.");
+        }
 
         Producto producto = new Producto();
         producto.setCodigo(productRequestDTO.getCodigo());
@@ -49,11 +63,11 @@ public class ProductServiceImpl implements ProductService {
         producto.setTipo(TipoProducto.valueOf(productRequestDTO.getTipo().toUpperCase()));
         producto.setFechaPublicacion(LocalDateTime.now());
         producto.setVendedor(vendedor);
+        producto.setCategoria(categoria);
 
         // Guardar el producto primero
         Producto savedProduct = productRepository.save(producto);
 
-        // ✅ VALIDAR CONTENIDO Y DETERMINAR ESTADO
         boolean contieneProhibidas = validarYProcesarContenido(savedProduct, productRequestDTO);
 
         if (contieneProhibidas) {
@@ -63,10 +77,9 @@ public class ProductServiceImpl implements ProductService {
             savedProduct.setEstado(EstadoProducto.ACTIVO);
         }
 
-        // Guardar cambios de estado
+        // Guardar cambs de estado
         savedProduct = productRepository.save(savedProduct);
 
-        // ✅ CREAR INCIDENCIA DESPUÉS DE GUARDAR (cuando tenemos el ID)
         if (contieneProhibidas) {
             crearIncidenciaAutomatica(savedProduct);
         }
@@ -79,6 +92,20 @@ public class ProductServiceImpl implements ProductService {
         Producto producto = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
 
+        if (productRequestDTO.getIdCategoria() != null) {
+            Categoria categoria = categoriaRepository.findById(productRequestDTO.getIdCategoria())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Categoría no encontrada con ID: " + productRequestDTO.getIdCategoria()));
+
+            if (!categoria.getActivo()) {
+                throw new RuntimeException(
+                        "La categoría '" + categoria.getNombre()
+                                + "' está desactivada. No se pueden asignar productos a categorías inactivas.");
+            }
+
+            producto.setCategoria(categoria);
+        }
+
         producto.setCodigo(productRequestDTO.getCodigo());
         producto.setNombre(productRequestDTO.getNombre());
         producto.setDescripcion(productRequestDTO.getDescripcion());
@@ -89,7 +116,6 @@ public class ProductServiceImpl implements ProductService {
 
         Producto updatedProduct = productRepository.save(producto);
 
-        // ✅ VALIDAR CONTENIDO Y ACTUALIZAR ESTADO SI ES NECESARIO
         EstadoProducto estadoAnterior = updatedProduct.getEstado();
         boolean contieneProhibidas = validarYProcesarContenido(updatedProduct, productRequestDTO);
 
@@ -108,7 +134,6 @@ public class ProductServiceImpl implements ProductService {
         return convertToResponseDTO(updatedProduct);
     }
 
-    // ✅ TODOS LOS DEMÁS MÉTODOS PERMANECEN EXACTAMENTE IGUAL
     @Override
     @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(Long id) {
@@ -228,6 +253,11 @@ public class ProductServiceImpl implements ProductService {
             dto.setNombreVendedor(producto.getVendedor().getNombre());
         }
 
+        if (producto.getCategoria() != null) {
+            dto.setIdCategoria(producto.getCategoria().getIdCategoria());
+            dto.setNombreCategoria(producto.getCategoria().getNombre());
+        }
+
         if (producto.getFotos() != null) {
             List<PhotoResponseDTO> fotosDTO = producto.getFotos().stream()
                     .map(foto -> new PhotoResponseDTO(foto.getIdFoto(), foto.getUrl(), producto.getIdProducto()))
@@ -237,8 +267,6 @@ public class ProductServiceImpl implements ProductService {
 
         return dto;
     }
-
-    // ✅ MÉTODOS AUXILIARES PARA VALIDACIÓN DE CONTENIDO PROHIBIDO
 
     private boolean validarYProcesarContenido(Producto producto, ProductRequestDTO requestDTO) {
         // Combinar todo el texto del producto para análisis
@@ -251,14 +279,12 @@ public class ProductServiceImpl implements ProductService {
 
     private void crearIncidenciaAutomatica(Producto producto) {
         try {
-            // Usar el servicio para crear la incidencia automáticamente
             incidenciaService.crearPorDeteccion(
                     producto.getIdProducto(),
                     producto.getVendedor().getIdUsuario(),
                     "Contenido prohibido detectado automáticamente",
                     "El sistema detectó automáticamente contenido prohibido en el producto: " + producto.getNombre());
         } catch (Exception e) {
-            // Log error pero no fallar la creación del producto
             System.err.println("Error al crear incidencia automática: " + e.getMessage());
         }
     }

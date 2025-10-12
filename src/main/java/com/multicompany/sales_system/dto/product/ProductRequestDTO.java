@@ -31,4 +31,7 @@ public class ProductRequestDTO {
 
     @NotNull(message = "El ID del vendedor es obligatorio")
     private Long idVendedor;
+
+    @NotNull(message = "El ID de la categoría es obligatorio")
+    private Long idCategoria;
 }
