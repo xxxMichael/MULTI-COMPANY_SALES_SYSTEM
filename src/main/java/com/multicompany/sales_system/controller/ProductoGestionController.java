@@ -39,7 +39,11 @@ public class ProductoGestionController {
     // ================================
     // FUNCIONALIDAD "ME INTERESA"
     // ================================
-
+    @GetMapping("/interes/total-por-vendedor/{vendedorId}")
+    public ResponseEntity<Map<String, Object>> getTotalInteresesByVendedor(@PathVariable Long vendedorId) {
+        Long total = productoInteresadoService.getTotalInteresesByVendedor(vendedorId);
+        return ResponseEntity.ok(Map.of("vendedorId", vendedorId, "totalIntereses", total));
+    }
     /**
      * Agregar producto a lista de "me interesa"
      */

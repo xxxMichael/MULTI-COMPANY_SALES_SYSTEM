@@ -17,6 +17,11 @@ import java.util.Optional;
  */
 @Repository
 public interface ProductoInteresadoRepository extends JpaRepository<ProductoInteresado, Long> {
+        /**
+         * Contar el total de intereses recibidos por todos los productos de un vendedor
+         */
+        @Query("SELECT COUNT(pi) FROM ProductoInteresado pi WHERE pi.producto.vendedor.idUsuario = :vendedorId")
+        Long countInteresesByVendedor(@Param("vendedorId") Long vendedorId);
 
     /**
      * Buscar si un usuario ya tiene marcado como "me interesa" un producto

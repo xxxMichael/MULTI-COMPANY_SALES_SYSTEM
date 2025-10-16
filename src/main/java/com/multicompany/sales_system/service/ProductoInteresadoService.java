@@ -34,6 +34,9 @@ public class ProductoInteresadoService {
     /**
      * Agregar un producto a la lista de "me interesa" del usuario
      */
+    public Long getTotalInteresesByVendedor(Long vendedorId) {
+        return productoInteresadoRepository.countInteresesByVendedor(vendedorId);
+    }
     @Transactional
     public boolean agregarInteres(Long usuarioId, Long productoId) {
         // Verificar si ya existe la relación
