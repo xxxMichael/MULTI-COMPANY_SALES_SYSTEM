@@ -22,6 +22,13 @@ public interface ProductService {
 
     void deleteProduct(Long id);
 
+    /**
+     * Elimina un producto de forma lógica (cambia estado a ELIMINADO)
+     * 
+     * @param id ID del producto
+     */
+    void deleteProductLogico(Long id);
+
     List<ProductResponseDTO> searchProducts(String searchTerm);
 
     // NUEVOS MÉTODOS CON FILTROS

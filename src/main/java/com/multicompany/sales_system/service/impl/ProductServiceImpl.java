@@ -170,6 +170,14 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public void deleteProductLogico(Long id) {
+        Producto producto = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+        producto.setEstado(EstadoProducto.ELIMINADO);
+        productRepository.save(producto);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> searchProducts(String searchTerm) {
         List<Producto> productos = productRepository.findByNombreContainingIgnoreCaseOrDescripcionContainingIgnoreCase(

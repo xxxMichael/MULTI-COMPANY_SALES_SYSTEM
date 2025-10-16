@@ -111,6 +111,24 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Eliminar producto lógicamente (cambiar estado a ELIMINADO)
+     * PATCH /api/products/{id}/eliminar-logico
+     */
+    @PatchMapping("/{id}/eliminar-logico")
+    public ResponseEntity<?> deleteProductLogico(@PathVariable Long id) {
+        try {
+            productService.deleteProductLogico(id);
+            Map<String, String> resp = new HashMap<>();
+            resp.put("mensaje", "Producto marcado como ELIMINADO");
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
     @GetMapping("/search")
     public ResponseEntity<List<ProductResponseDTO>> searchProducts(@RequestParam String searchTerm) {
         List<ProductResponseDTO> products = productService.searchProducts(searchTerm);
