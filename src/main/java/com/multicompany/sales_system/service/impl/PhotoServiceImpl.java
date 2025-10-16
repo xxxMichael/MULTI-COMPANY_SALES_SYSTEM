@@ -135,6 +135,13 @@ public class PhotoServiceImpl implements PhotoService {
             }
         }
 
+        // Eliminar la referencia en el producto
+        Producto producto = foto.getProducto();
+        if (producto != null && producto.getFotos() != null) {
+            producto.getFotos().removeIf(f -> f.getIdFoto().equals(foto.getIdFoto()));
+            productRepository.save(producto);
+        }
+
         // Eliminar el registro de la base de datos
         photoRepository.deleteById(id);
         log.info("Foto eliminada de la base de datos: {}", id);
