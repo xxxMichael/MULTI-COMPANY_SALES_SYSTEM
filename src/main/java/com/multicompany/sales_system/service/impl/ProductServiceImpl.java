@@ -3,10 +3,8 @@ package com.multicompany.sales_system.service.impl;
 import com.multicompany.sales_system.dto.photo.PhotoResponseDTO;
 import com.multicompany.sales_system.dto.product.ProductRequestDTO;
 import com.multicompany.sales_system.dto.product.ProductResponseDTO;
-import com.multicompany.sales_system.model.Producto;
-import com.multicompany.sales_system.model.Usuario;
-import com.multicompany.sales_system.model.Categoria;
-import com.multicompany.sales_system.model.FotoProducto;
+import com.multicompany.sales_system.model.*;
+import com.multicompany.sales_system.model.enums.EstadoProducto;
 import com.multicompany.sales_system.model.enums.TipoProducto;
 import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
@@ -14,7 +12,6 @@ import com.multicompany.sales_system.repository.CategoriaRepository;
 import com.multicompany.sales_system.service.ProductService;
 import com.multicompany.sales_system.service.DetectorService;
 import com.multicompany.sales_system.service.IncidenciaService;
-import com.multicompany.sales_system.model.enums.EstadoProducto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,29 +29,30 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
-    private final UsuarioRepository usuarioRepository; // Agregado
-    private final CategoriaRepository categoriaRepository; // Agregado
-    private final DetectorService detectorService; // Agregado
-    private final IncidenciaService incidenciaService; // Agregado
+    private final UsuarioRepository usuarioRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final DetectorService detectorService;
+    private final IncidenciaService incidenciaService;
 
     @Override
     public ProductResponseDTO createProduct(ProductRequestDTO productRequestDTO) {
-        // Buscar el vendedor real en la base de datos
+        // Buscar vendedor
         Usuario vendedor = usuarioRepository.findById(productRequestDTO.getIdVendedor())
                 .orElseThrow(() -> new RuntimeException(
                         "Vendedor no encontrado con ID: " + productRequestDTO.getIdVendedor()));
 
+        // Buscar categoría
         Categoria categoria = categoriaRepository.findById(productRequestDTO.getIdCategoria())
                 .orElseThrow(() -> new RuntimeException(
                         "Categoría no encontrada con ID: " + productRequestDTO.getIdCategoria()));
 
-        // Validar que la categoría esté activa
+        // Validar categoría activa
         if (!categoria.getActivo()) {
-            throw new RuntimeException(
-                    "La categoría '" + categoria.getNombre()
-                            + "' está desactivada. No se pueden crear productos en categorías inactivas.");
+            throw new RuntimeException("La categoría '" + categoria.getNombre()
+                    + "' está desactivada. No se pueden crear productos en categorías inactivas.");
         }
 
+        // Crear producto
         Producto producto = new Producto();
         producto.setCodigo(productRequestDTO.getCodigo());
         producto.setNombre(productRequestDTO.getNombre());
@@ -67,9 +65,8 @@ public class ProductServiceImpl implements ProductService {
         producto.setVendedor(vendedor);
         producto.setCategoria(categoria);
 
-        // Guardar el producto primero
+        // Guardar y validar
         Producto savedProduct = productRepository.save(producto);
-
         boolean contieneProhibidas = validarYProcesarContenido(savedProduct, productRequestDTO);
 
         if (contieneProhibidas) {
@@ -79,7 +76,6 @@ public class ProductServiceImpl implements ProductService {
             savedProduct.setEstado(EstadoProducto.ACTIVO);
         }
 
-        // Guardar cambs de estado
         savedProduct = productRepository.save(savedProduct);
 
         if (contieneProhibidas) {
@@ -100,9 +96,8 @@ public class ProductServiceImpl implements ProductService {
                             "Categoría no encontrada con ID: " + productRequestDTO.getIdCategoria()));
 
             if (!categoria.getActivo()) {
-                throw new RuntimeException(
-                        "La categoría '" + categoria.getNombre()
-                                + "' está desactivada. No se pueden asignar productos a categorías inactivas.");
+                throw new RuntimeException("La categoría '" + categoria.getNombre()
+                        + "' está desactivada. No se pueden asignar productos a categorías inactivas.");
             }
 
             producto.setCategoria(categoria);
@@ -125,13 +120,15 @@ public class ProductServiceImpl implements ProductService {
             updatedProduct.setEstado(EstadoProducto.PROHIBIDO);
             updatedProduct.setDisponibilidad(false);
         } else if (estadoAnterior == EstadoProducto.PROHIBIDO) {
-            // Si antes estaba prohibido y ahora está limpio, reactivar
             updatedProduct.setEstado(EstadoProducto.ACTIVO);
             updatedProduct.setDisponibilidad(true);
         }
 
-        // Guardar cambios de estado
         updatedProduct = productRepository.save(updatedProduct);
+
+        if (contieneProhibidas) {
+            crearIncidenciaAutomatica(updatedProduct);
+        }
 
         return convertToResponseDTO(updatedProduct);
     }
@@ -139,7 +136,6 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(Long id) {
-        // ✅ Usar el método con JOIN FETCH para cargar fotos
         Producto producto = productRepository.findByIdWithFotos(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
         return convertToResponseDTO(producto);
@@ -155,8 +151,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> getProductsByVendedor(Long vendedorId) {
-        List<Producto> productos = productRepository.findByVendedorIdUsuario(vendedorId);
-        return productos.stream()
+        return productRepository.findByVendedorIdUsuario(vendedorId).stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
@@ -180,72 +175,70 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> searchProducts(String searchTerm) {
-        List<Producto> productos = productRepository.findByNombreContainingIgnoreCaseOrDescripcionContainingIgnoreCase(
-                searchTerm, searchTerm);
-        return productos.stream()
+        return productRepository.findByNombreContainingIgnoreCaseOrDescripcionContainingIgnoreCase(
+                searchTerm, searchTerm).stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    // IMPLEMENTACIÓN DE NUEVOS MÉTODOS CON FILTROS (PERMANECEN IGUAL)
-
+    // --- FILTROS Y BÚSQUEDAS AVANZADAS ---
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProductsByPriceRange(Double minPrice, Double maxPrice, Pageable pageable) {
-        Page<Producto> productos = productRepository.findByPrecioBetween(minPrice, maxPrice, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findByPrecioBetween(minPrice, maxPrice, pageable)
+                .map(this::convertToResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProductsByMinPrice(Double minPrice, Pageable pageable) {
-        Page<Producto> productos = productRepository.findByPrecioGreaterThanEqual(minPrice, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findByPrecioGreaterThanEqual(minPrice, pageable)
+                .map(this::convertToResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProductsByMaxPrice(Double maxPrice, Pageable pageable) {
-        Page<Producto> productos = productRepository.findByPrecioLessThanEqual(maxPrice, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findByPrecioLessThanEqual(maxPrice, pageable)
+                .map(this::convertToResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProductsByTipo(TipoProducto tipo, Pageable pageable) {
-        Page<Producto> productos = productRepository.findByTipoAndEstadoActivo(tipo, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findByTipoAndEstadoActivo(tipo, pageable)
+                .map(this::convertToResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProductsByUbicacion(String ubicacion, Pageable pageable) {
         String ubicacionPattern = "%" + ubicacion + "%";
-        Page<Producto> productos = productRepository.findByUbicacionContaining(ubicacionPattern, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findByUbicacionContaining(ubicacionPattern, pageable)
+                .map(this::convertToResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> searchProductsWithPagination(String searchTerm, Pageable pageable) {
         String searchPattern = "%" + searchTerm + "%";
-        Page<Producto> productos = productRepository.findByNombreOrDescripcionContaining(searchPattern, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findByNombreOrDescripcionContaining(searchPattern, pageable)
+                .map(this::convertToResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProductsWithFilters(Double minPrice, Double maxPrice, TipoProducto tipo,
-            String searchTerm, String ubicacion, Boolean disponibilidad,
-            Pageable pageable) {
+            String searchTerm, String ubicacion, Boolean disponibilidad, Pageable pageable) {
         String searchPattern = searchTerm != null ? "%" + searchTerm + "%" : null;
         String ubicacionPattern = ubicacion != null ? "%" + ubicacion + "%" : null;
 
-        Page<Producto> productos = productRepository.findWithFilters(minPrice, maxPrice, tipo, searchPattern,
-                ubicacionPattern, disponibilidad, pageable);
-        return productos.map(this::convertToResponseDTO);
+        return productRepository.findWithFilters(minPrice, maxPrice, tipo, searchPattern, ubicacionPattern,
+                disponibilidad, pageable)
+                .map(this::convertToResponseDTO);
     }
 
+    // --- AUXILIARES ---
     private ProductResponseDTO convertToResponseDTO(Producto producto) {
         ProductResponseDTO dto = new ProductResponseDTO();
         dto.setIdProducto(producto.getIdProducto());
@@ -269,28 +262,22 @@ public class ProductServiceImpl implements ProductService {
             dto.setNombreCategoria(producto.getCategoria().getNombre());
         }
 
-        // ✅ Forzar la inicialización de fotos dentro de la transacción
         List<FotoProducto> fotos = producto.getFotos();
         if (fotos != null && !fotos.isEmpty()) {
-            // Forzar la carga accediendo al tamaño
-            fotos.size();
-            List<PhotoResponseDTO> fotosDTO = fotos.stream()
+            fotos.size(); // Forzar carga
+            dto.setFotos(fotos.stream()
                     .map(foto -> new PhotoResponseDTO(foto.getIdFoto(), foto.getUrl(), producto.getIdProducto()))
-                    .collect(Collectors.toList());
-            dto.setFotos(fotosDTO);
+                    .collect(Collectors.toList()));
         } else {
-            dto.setFotos(new ArrayList<>()); // Lista vacía en lugar de null
+            dto.setFotos(new ArrayList<>());
         }
 
         return dto;
     }
 
     private boolean validarYProcesarContenido(Producto producto, ProductRequestDTO requestDTO) {
-        // Combinar todo el texto del producto para análisis
         String contenidoCompleto = (requestDTO.getNombre() != null ? requestDTO.getNombre() : "") + " " +
                 (requestDTO.getDescripcion() != null ? requestDTO.getDescripcion() : "");
-
-        // Usar DetectorService para verificar palabras prohibidas
         return detectorService.containsProhibited(contenidoCompleto);
     }
 
