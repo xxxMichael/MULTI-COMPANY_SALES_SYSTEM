@@ -25,7 +25,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .authorizeHttpRequests(reg -> reg
-                // Públicos
+                // --- RUTAS PÚBLICAS ---
                 .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/verify-email").permitAll()
@@ -33,21 +33,38 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET,  "/api/users/check-email").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/recover-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/reset-password").permitAll()
-                    .requestMatchers("/api/photos/image/**").permitAll()
 
-                    .requestMatchers("/api/photos/image/**").permitAll()
-                    .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**",
-                                     "/swagger-ui.html", "/swagger-resources/**", "/webjars/**",
-                                     "/api-docs/**", "/api-docs", "/actuator/health/**", "/public/**").permitAll()
+                // Archivos e imágenes
+                .requestMatchers("/api/photos/image/**").permitAll()
 
-                // Protegido por rol
+                // WebSocket y Chat (para pruebas o funcionalidad pública)
+                .requestMatchers("/ws-chat/**", "/ws-chat").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/chat/**").permitAll()
+
+                // Swagger y documentación
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/v3/api-docs.yaml",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/swagger-resources/**",
+                    "/webjars/**",
+                    "/api-docs/**",
+                    "/api-docs",
+                    "/actuator/health/**",
+                    "/public/**"
+                ).permitAll()
+
+                // --- RUTAS PROTEGIDAS POR ROL ---
                 .requestMatchers(HttpMethod.POST, "/api/users/admin/**")
                     .hasRole("ADMINISTRADOR")
 
-                // el resto autenticado
+                // --- EL RESTO REQUIERE AUTENTICACIÓN ---
                 .anyRequest().authenticated()
             )
             .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
             .build();
     }
+
+    // Nota: la configuración CORS se maneja desde CorsConfig.
 }
