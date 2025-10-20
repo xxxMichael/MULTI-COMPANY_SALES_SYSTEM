@@ -70,7 +70,7 @@ public class ProductServiceImpl implements ProductService {
         boolean contieneProhibidas = validarYProcesarContenido(savedProduct, productRequestDTO);
 
         if (contieneProhibidas) {
-            savedProduct.setEstado(EstadoProducto.PROHIBIDO);
+            savedProduct.setEstado(EstadoProducto.OCULTO);
             savedProduct.setDisponibilidad(false);
         } else {
             savedProduct.setEstado(EstadoProducto.ACTIVO);
@@ -81,7 +81,6 @@ public class ProductServiceImpl implements ProductService {
         if (contieneProhibidas) {
             crearIncidenciaAutomatica(savedProduct);
         }
-
         return convertToResponseDTO(savedProduct);
     }
 
