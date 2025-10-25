@@ -27,4 +27,8 @@ public class ProductResponseDTO {
     private Long idCategoria;
     private String nombreCategoria;
     private List<PhotoResponseDTO> fotos;
+    /**
+     * Si el producto es en realidad un servicio, aquí se devolverá el horario (opcional).
+     */
+    private String horario;
 }

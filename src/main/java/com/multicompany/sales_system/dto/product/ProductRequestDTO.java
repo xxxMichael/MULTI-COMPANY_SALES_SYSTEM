@@ -10,7 +10,11 @@ import jakarta.validation.constraints.*;
 @AllArgsConstructor
 public class ProductRequestDTO {
 
-    @NotBlank(message = "El código es obligatorio")
+    /**
+     * El código ya NO debe enviarse desde el frontend al crear un producto.
+     * Se genera automáticamente en el backend como UUID. Se deja el campo
+     * aquí opcional para permitir actualizaciones si es necesario.
+     */
     private String codigo;
 
     @NotBlank(message = "El nombre es obligatorio")
@@ -28,6 +32,11 @@ public class ProductRequestDTO {
 
     @NotNull(message = "El tipo es obligatorio")
     private String tipo;
+
+    /**
+     * Horario (opcional) utilizado cuando el tipo es SERVICIO.
+     */
+    private String horario;
 
     @NotNull(message = "El ID del vendedor es obligatorio")
     private Long idVendedor;

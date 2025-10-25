@@ -57,4 +57,15 @@ public interface ProductService {
             String ubicacion,
             Boolean disponibilidad,
             Pageable pageable);
+
+    // --- Servicios ---
+    /**
+     * Obtener páginas de servicios (entidades Servicio con horario)
+     */
+    Page<ProductResponseDTO> getAllServices(Pageable pageable);
+
+    /**
+     * Obtener una vista combinada (productos y servicios) paginada.
+     */
+    Page<ProductResponseDTO> getAllProductsAndServices(Pageable pageable);
 }
