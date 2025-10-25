@@ -91,6 +91,24 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
+    /**
+     * Obtener solo servicios (aquellos que tienen horario)
+     */
+    @GetMapping("/services")
+    public ResponseEntity<Page<ProductResponseDTO>> getAllServices(Pageable pageable) {
+        Page<ProductResponseDTO> services = productService.getAllServices(pageable);
+        return ResponseEntity.ok(services);
+    }
+
+    /**
+     * Obtener productos y servicios combinados (página basada en productos, con horario rellenado cuando corresponda)
+     */
+    @GetMapping("/all")
+    public ResponseEntity<Page<ProductResponseDTO>> getAllProductsAndServices(Pageable pageable) {
+        Page<ProductResponseDTO> combined = productService.getAllProductsAndServices(pageable);
+        return ResponseEntity.ok(combined);
+    }
+
     @GetMapping("/vendedor/{vendedorId}")
     public ResponseEntity<List<ProductResponseDTO>> getProductsByVendedor(@PathVariable Long vendedorId) {
         List<ProductResponseDTO> products = productService.getProductsByVendedor(vendedorId);
