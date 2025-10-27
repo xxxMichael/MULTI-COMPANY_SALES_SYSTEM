@@ -55,7 +55,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private String adminKey;
 
     // ==========================
-    //  Registro general (siempre USER)
+    // Registro general (siempre USER)
     // ==========================
     @Override
     @Transactional
@@ -85,12 +85,11 @@ public class UsuarioServiceImpl implements UsuarioService {
                 saved.getIdUsuario(),
                 saved.getCorreo(),
                 saved.getRol().name(),
-                "Usuario creado. Se envió un código a tu correo."
-        );
+                "Usuario creado. Se envió un código a tu correo.");
     }
 
     // ==========================
-    //  Verificación de correo
+    // Verificación de correo
     // ==========================
     @Override
     @Transactional
@@ -131,7 +130,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     // ==========================
-    //  Reenviar código
+    // Reenviar código
     // ==========================
     @Override
     @Transactional
@@ -147,7 +146,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     // ==========================
-    //  Check disponibilidad email
+    // Check disponibilidad email
     // ==========================
     @Override
     public boolean correoDisponible(String email) {
@@ -174,7 +173,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     // ==========================
-    //  ADMIN: Crear MODERADOR
+    // ADMIN: Crear MODERADOR
     // ==========================
     @Override
     @Transactional
@@ -209,19 +208,18 @@ public class UsuarioServiceImpl implements UsuarioService {
                 saved.getIdUsuario(),
                 saved.getCorreo(),
                 saved.getRol().name(),
-                "Usuario moderador creado. Se envió un código a su correo."
-        );
+                "Usuario moderador creado. Se envió un código a su correo.");
     }
 
     // ==========================
-    //  Login
+    // Login
     // ==========================
     @Override
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         Usuario usuario = usuarioRepo.findByCorreoIgnoreCase(request.getCorreo())
                 .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Credenciales inválidas"));
+                        HttpStatus.BAD_REQUEST, "Credenciales inválidas"));
 
         if (!encoder.matches(request.getContrasena(), usuario.getContrasena())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Credenciales inválidas");
@@ -233,8 +231,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuario.getCedula(),
                 usuario.getCorreo(),
                 usuario.getRol().name(),
-                usuario.getEstado().name()
-        );
+                usuario.getEstado().name());
 
         return LoginResponse.builder()
                 .id(usuario.getIdUsuario())
@@ -284,26 +281,27 @@ public class UsuarioServiceImpl implements UsuarioService {
                 saved.getIdUsuario(),
                 saved.getCorreo(),
                 saved.getRol().name(),
-                "Usuario moderador creado. Se envió un código a su correo."
-        );
+                "Usuario moderador creado. Se envió un código a su correo.");
     }
 
     // ==========================
-    //  Recuperación de contraseña
+    // Recuperación de contraseña
     // ==========================
     @Transactional
     public void iniciarRecuperacionContrasena(String correo) {
         Usuario usuario = usuarioRepo.findByCorreoIgnoreCase(correo)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         // Genera un código/token de recuperación
         String recoveryCode = codeGen.generateNumeric(); // O UUID.randomUUID().toString()
         usuario.setRecoveryCode(recoveryCode);
         usuario.setRecoveryCodeExpiresAt(OffsetDateTime.now().plusMinutes(ttlMinutes).toLocalDateTime());
         // Log para depuración
-        System.out.println("[RECUPERACION] Usuario: " + usuario.getCorreo() + ", Código: " + recoveryCode + ", Expira: " + usuario.getRecoveryCodeExpiresAt());
+        System.out.println("[RECUPERACION] Usuario: " + usuario.getCorreo() + ", Código: " + recoveryCode + ", Expira: "
+                + usuario.getRecoveryCodeExpiresAt());
         usuarioRepo.save(usuario);
-        System.out.println("[RECUPERACION] Guardado en BD: " + usuario.getRecoveryCode() + " | " + usuario.getRecoveryCodeExpiresAt());
+        System.out.println("[RECUPERACION] Guardado en BD: " + usuario.getRecoveryCode() + " | "
+                + usuario.getRecoveryCodeExpiresAt());
 
         // Construye el enlace de recuperación (ajusta la URL según tu frontend)
         String recoveryLink = "http://localhost:5173/reset-password?code=" + recoveryCode;
@@ -314,7 +312,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Transactional
     public void resetPassword(com.multicompany.sales_system.dto.user.PasswordResetRequest request) {
         Usuario usuario = usuarioRepo.findByCorreoIgnoreCase(request.getEmail())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         if (usuario.getRecoveryCode() == null || usuario.getRecoveryCodeExpiresAt() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No hay código de recuperación activo");
@@ -333,17 +331,22 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     // ==========================
-    //  CRUD Operations
+    // CRUD Operations
     // ==========================
     @Override
     public List<UserResponse> listUsers(boolean includeDeleted) {
         List<Usuario> usuarios;
+
         if (includeDeleted) {
             usuarios = usuarioRepo.findAll();
         } else {
             usuarios = usuarioRepo.findByEstadoNot(Usuario.EstadoUsuario.ELIMINADO);
         }
-        return usuarios.stream().map(this::mapToUserResponse).toList();
+
+        return usuarios.stream()
+                .filter(u -> !u.getRol().toString().equalsIgnoreCase("ADMIN")) // 🔥 excluye al admin
+                .map(this::mapToUserResponse)
+                .toList();
     }
 
     @Override
@@ -358,8 +361,6 @@ public class UsuarioServiceImpl implements UsuarioService {
         return mapToUserResponse(usuario);
     }
 
-
-
     @Override
     @Transactional
     public UserResponse updateUser(String cedula, UserUpdateRequest request) {
@@ -371,7 +372,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
 
         // Check for unique constraints if email or cedula changed
-        if (!usuario.getCorreo().equalsIgnoreCase(request.getCorreo()) && usuarioRepo.existsByCorreoIgnoreCase(request.getCorreo())) {
+        if (!usuario.getCorreo().equalsIgnoreCase(request.getCorreo())
+                && usuarioRepo.existsByCorreoIgnoreCase(request.getCorreo())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
         if (!usuario.getCedula().equals(request.getCedula()) && usuarioRepo.existsByCedula(request.getCedula())) {
@@ -417,7 +419,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
 
         // Check for unique constraints if email or cedula changed
-        if (!usuario.getCorreo().equalsIgnoreCase(request.getCorreo()) && usuarioRepo.existsByCorreoIgnoreCase(request.getCorreo())) {
+        if (!usuario.getCorreo().equalsIgnoreCase(request.getCorreo())
+                && usuarioRepo.existsByCorreoIgnoreCase(request.getCorreo())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
         if (!usuario.getCedula().equals(request.getCedula()) && usuarioRepo.existsByCedula(request.getCedula())) {
@@ -462,7 +465,6 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuario.getRol(),
                 usuario.getEstado().name(),
                 usuario.isEmailVerificado(),
-                usuario.getFechaRegistro()
-        );
+                usuario.getFechaRegistro());
     }
 }
