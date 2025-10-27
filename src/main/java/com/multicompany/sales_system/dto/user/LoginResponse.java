@@ -11,8 +11,9 @@ public class LoginResponse {
     private String correo;
     private String nombre;
     private String apellido;
-    private String rol;             
+    private String rol;
+    private String estado;
     private boolean emailVerificado;
-    private String message;       
-    private String token;  
+    private String message;
+    private String token;
 }

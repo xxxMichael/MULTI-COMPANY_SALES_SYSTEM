@@ -1,6 +1,7 @@
 package com.multicompany.sales_system.service.impl;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,8 @@ import com.multicompany.sales_system.dto.user.LoginRequest;
 import com.multicompany.sales_system.dto.user.LoginResponse;
 import com.multicompany.sales_system.dto.user.RegisterRequest;
 import com.multicompany.sales_system.dto.user.RegisterResponse;
+import com.multicompany.sales_system.dto.user.UserResponse;
+import com.multicompany.sales_system.dto.user.UserUpdateRequest;
 import com.multicompany.sales_system.dto.user.VerifyEmailRequest;
 import com.multicompany.sales_system.model.EmailVerification;
 import com.multicompany.sales_system.model.Usuario;
@@ -224,11 +227,13 @@ public class UsuarioServiceImpl implements UsuarioService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Credenciales inválidas");
         }
 
-        // ✅ Generar JWT con rol USER/MODERATOR/ADMIN
+        // ✅ Generar JWT con rol USER/MODERATOR/ADMIN y estado
         String token = jwtService.generateToken(
                 usuario.getIdUsuario(),
+                usuario.getCedula(),
                 usuario.getCorreo(),
-                usuario.getRol().name()
+                usuario.getRol().name(),
+                usuario.getEstado().name()
         );
 
         return LoginResponse.builder()
@@ -237,6 +242,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .nombre(usuario.getNombre())
                 .apellido(usuario.getApellido())
                 .rol(usuario.getRol().name())
+                .estado(usuario.getEstado().name())
                 .emailVerificado(usuario.isEmailVerificado())
                 .message(usuario.isEmailVerificado()
                         ? "Login OK"
@@ -246,8 +252,40 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
+    @Transactional
     public RegisterResponse crearModerador(AdminCreateModeratorRequest dto, String adminKeyHeader) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // Valida adminKey del header contra el .env
+        if (adminKey == null || !adminKey.equals(adminKeyHeader)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AdminKey inválida");
+        }
+
+        if (usuarioRepo.existsByCorreoIgnoreCase(dto.getCorreo())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya está registrado");
+        }
+        if (usuarioRepo.existsByCedula(dto.getCedula())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La cédula ya está registrada");
+        }
+
+        Usuario u = new Usuario();
+        u.setNombre(dto.getNombre());
+        u.setApellido(dto.getApellido());
+        u.setCedula(dto.getCedula());
+        u.setCorreo(dto.getCorreo().toLowerCase().trim());
+        u.setContrasena(encoder.encode(dto.getContrasena()));
+        u.setRol(UsuarioRole.MODERATOR);
+        u.setTelefono(dto.getTelefono());
+        u.setDireccion(dto.getDireccion());
+        u.setGenero(dto.getGenero());
+
+        Usuario saved = usuarioRepo.save(u);
+        crearYEnviarCodigo(saved);
+
+        return new RegisterResponse(
+                saved.getIdUsuario(),
+                saved.getCorreo(),
+                saved.getRol().name(),
+                "Usuario moderador creado. Se envió un código a su correo."
+        );
     }
 
     // ==========================
@@ -292,5 +330,139 @@ public class UsuarioServiceImpl implements UsuarioService {
         usuario.setRecoveryCode(null);
         usuario.setRecoveryCodeExpiresAt(null);
         usuarioRepo.save(usuario);
+    }
+
+    // ==========================
+    //  CRUD Operations
+    // ==========================
+    @Override
+    public List<UserResponse> listUsers(boolean includeDeleted) {
+        List<Usuario> usuarios;
+        if (includeDeleted) {
+            usuarios = usuarioRepo.findAll();
+        } else {
+            usuarios = usuarioRepo.findByEstadoNot(Usuario.EstadoUsuario.ELIMINADO);
+        }
+        return usuarios.stream().map(this::mapToUserResponse).toList();
+    }
+
+    @Override
+    public UserResponse getUserByCedula(String cedula) {
+        Usuario usuario = usuarioRepo.findByCedula(cedula)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (usuario.getEstado() == Usuario.EstadoUsuario.ELIMINADO) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario eliminado");
+        }
+
+        return mapToUserResponse(usuario);
+    }
+
+
+
+    @Override
+    @Transactional
+    public UserResponse updateUser(String cedula, UserUpdateRequest request) {
+        Usuario usuario = usuarioRepo.findByCedula(cedula)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (usuario.getEstado() == Usuario.EstadoUsuario.ELIMINADO) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario eliminado");
+        }
+
+        // Check for unique constraints if email or cedula changed
+        if (!usuario.getCorreo().equalsIgnoreCase(request.getCorreo()) && usuarioRepo.existsByCorreoIgnoreCase(request.getCorreo())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya está registrado");
+        }
+        if (!usuario.getCedula().equals(request.getCedula()) && usuarioRepo.existsByCedula(request.getCedula())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La cédula ya está registrada");
+        }
+
+        usuario.setNombre(request.getNombre());
+        usuario.setApellido(request.getApellido());
+        usuario.setCedula(request.getCedula());
+        usuario.setCorreo(request.getCorreo().toLowerCase().trim());
+        usuario.setTelefono(request.getTelefono());
+        usuario.setDireccion(request.getDireccion());
+        usuario.setGenero(request.getGenero());
+        if (request.getRol() != null) {
+            usuario.setRol(request.getRol());
+        }
+        if (request.getEstado() != null) {
+            usuario.setEstado(request.getEstado());
+        }
+
+        Usuario saved = usuarioRepo.save(usuario);
+        return mapToUserResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(String cedula) {
+        Usuario usuario = usuarioRepo.findByCedula(cedula)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        usuario.setEstado(Usuario.EstadoUsuario.ELIMINADO);
+        usuarioRepo.save(usuario);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updateOwnProfile(String cedula, UserUpdateRequest request) {
+        Usuario usuario = usuarioRepo.findByCedula(cedula)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (usuario.getEstado() == Usuario.EstadoUsuario.ELIMINADO) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario eliminado");
+        }
+
+        // Check for unique constraints if email or cedula changed
+        if (!usuario.getCorreo().equalsIgnoreCase(request.getCorreo()) && usuarioRepo.existsByCorreoIgnoreCase(request.getCorreo())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya está registrado");
+        }
+        if (!usuario.getCedula().equals(request.getCedula()) && usuarioRepo.existsByCedula(request.getCedula())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La cédula ya está registrada");
+        }
+
+        // Solo permitir actualizar campos no sensibles (excluir rol y estado)
+        usuario.setNombre(request.getNombre());
+        usuario.setApellido(request.getApellido());
+        usuario.setCedula(request.getCedula());
+        usuario.setCorreo(request.getCorreo().toLowerCase().trim());
+        usuario.setTelefono(request.getTelefono());
+        usuario.setDireccion(request.getDireccion());
+        usuario.setGenero(request.getGenero());
+
+        Usuario saved = usuarioRepo.save(usuario);
+        return mapToUserResponse(saved);
+    }
+
+    @Override
+    public UserResponse getUserById(Long id) {
+        Usuario usuario = usuarioRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (usuario.getEstado() == Usuario.EstadoUsuario.ELIMINADO) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario eliminado");
+        }
+
+        return mapToUserResponse(usuario);
+    }
+
+    private UserResponse mapToUserResponse(Usuario usuario) {
+        return new UserResponse(
+                usuario.getIdUsuario(),
+                usuario.getCedula(),
+                usuario.getNombre(),
+                usuario.getApellido(),
+                usuario.getCorreo(),
+                usuario.getTelefono(),
+                usuario.getDireccion(),
+                usuario.getGenero(),
+                usuario.getRol(),
+                usuario.getEstado().name(),
+                usuario.isEmailVerificado(),
+                usuario.getFechaRegistro()
+        );
     }
 }

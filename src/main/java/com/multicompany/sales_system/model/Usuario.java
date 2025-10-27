@@ -62,7 +62,7 @@ public class Usuario {
     @Column(name = "direccion", length = 255)
     private String direccion;
 
-    @Column(name = "genero", length = 2)
+    @Column(name = "genero", length = 10)
     private String genero;
 
     @Column(name = "contrasena", nullable = false, length = 255)
