@@ -43,6 +43,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Claims claims = jwt.claims(token);
                 String username = claims.getSubject();
                 String role = (String) claims.get("role");
+                String estado = (String) claims.get("estado");
+
+                // Verificar si el usuario está suspendido o eliminado
+                if ("SUSPENDIDO".equals(estado) || "ELIMINADO".equals(estado)) {
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.getWriter().write("{\"error\": \"Cuenta " + estado.toLowerCase() + ". No se permite el acceso.\"}");
+                    return;
+                }
+
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
                 var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);

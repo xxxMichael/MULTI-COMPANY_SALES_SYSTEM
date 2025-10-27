@@ -57,7 +57,23 @@ public class SecurityConfig {
 
                 // --- RUTAS PROTEGIDAS POR ROL ---
                 .requestMatchers(HttpMethod.POST, "/api/users/admin/**")
-                    .hasRole("ADMINISTRADOR")
+                    .hasRole("ADMIN")
+
+                // CRUD de usuarios (ADMIN y MODERATOR)
+                .requestMatchers(HttpMethod.GET, "/api/users")
+                    .hasAnyRole("ADMIN", "MODERATOR")
+                .requestMatchers(HttpMethod.GET, "/api/users/profile")
+                    .authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/users/profile")
+                    .authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/users/{cedula}")
+                    .hasAnyRole("ADMIN", "MODERATOR")
+                .requestMatchers(HttpMethod.PUT, "/api/users/{cedula}")
+                    .hasAnyRole("ADMIN", "MODERATOR")
+                .requestMatchers(HttpMethod.DELETE, "/api/users/{cedula}")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/users/{cedula}/role")
+                    .hasRole("ADMIN")
 
                 // --- EL RESTO REQUIERE AUTENTICACIÓN ---
                 .anyRequest().authenticated()

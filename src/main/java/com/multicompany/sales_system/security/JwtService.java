@@ -28,10 +28,12 @@ public class JwtService {
         return Keys.hmacShaKeyFor(bytes);
     }
 
-    public String generateToken(Long userId, String email, String role) {
+    public String generateToken(Long userId, String cedula, String email, String role, String estado) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("uid", userId);
+        claims.put("cedula", cedula);
         claims.put("role", role);
+        claims.put("estado", estado);
         long now = System.currentTimeMillis();
         Date issuedAt = new Date(now);
         Date expiresAt = new Date(now + expMinutes * 60_000L);
@@ -74,5 +76,15 @@ public class JwtService {
 
     public String getSubjectEmail(String token) {
         return claims(token).getSubject();
+    }
+
+    public String extractCedula(String token) {
+        Object cedula = claims(token).get("cedula");
+        return cedula != null ? cedula.toString() : null;
+    }
+
+    public String getEstado(String token) {
+        Object estado = claims(token).get("estado");
+        return estado != null ? estado.toString() : null;
     }
 }
