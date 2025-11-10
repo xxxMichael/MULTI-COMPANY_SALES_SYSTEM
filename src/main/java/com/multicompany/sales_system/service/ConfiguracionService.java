@@ -70,4 +70,116 @@ public class ConfiguracionService {
         
         return dias;
     }
+
+    /**
+     * Agrega una nueva palabra al filtro de palabras prohibidas.
+     * Si la palabra ya existe, no se agrega duplicada.
+     * 
+     * @param palabra palabra a agregar (será convertida a minúsculas y sin espacios)
+     * @return lista actualizada de palabras prohibidas
+     * @throws IllegalArgumentException si la palabra está vacía
+     */
+    public List<String> agregarPalabraProhibida(String palabra) {
+        if (palabra == null || palabra.trim().isEmpty()) {
+            throw new IllegalArgumentException("La palabra no puede estar vacía");
+        }
+
+        // Normalizar: minúsculas y sin espacios extras
+        String palabraNormalizada = palabra.trim().toLowerCase();
+
+        // Obtener la configuración actual o crear una nueva
+        Configuracion config = configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS)
+                .orElseGet(() -> {
+                    Configuracion nuevaConfig = new Configuracion();
+                    nuevaConfig.setOpcion(Configuracion.Opcion.FILTRO_PALABRAS);
+                    nuevaConfig.setValor("");
+                    return nuevaConfig;
+                });
+
+        // Obtener palabras actuales
+        Set<String> palabrasSet = new LinkedHashSet<>();
+        String valorActual = config.getValor();
+        if (valorActual != null && !valorActual.trim().isEmpty()) {
+            palabrasSet.addAll(Arrays.asList(valorActual.split(",")));
+        }
+
+        // Agregar la nueva palabra si no existe
+        palabrasSet.add(palabraNormalizada);
+
+        // Guardar actualización
+        String nuevoValor = String.join(",", palabrasSet);
+        config.setValor(nuevoValor);
+        configuracionRepository.save(config);
+
+        // Retornar lista actualizada
+        return new ArrayList<>(palabrasSet);
+    }
+
+    /**
+     * Elimina una palabra del filtro de palabras prohibidas.
+     * 
+     * @param palabra palabra a eliminar (será convertida a minúsculas)
+     * @return lista actualizada de palabras prohibidas
+     * @throws IllegalArgumentException si la palabra está vacía o no existe la configuración
+     */
+    public List<String> eliminarPalabraProhibida(String palabra) {
+        if (palabra == null || palabra.trim().isEmpty()) {
+            throw new IllegalArgumentException("La palabra no puede estar vacía");
+        }
+
+        // Normalizar: minúsculas
+        String palabraNormalizada = palabra.trim().toLowerCase();
+
+        // Obtener la configuración actual
+        Configuracion config = configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS)
+                .orElseThrow(() -> new IllegalArgumentException("No existe configuración de palabras prohibidas"));
+
+        // Obtener palabras actuales
+        Set<String> palabrasSet = new LinkedHashSet<>();
+        String valorActual = config.getValor();
+        if (valorActual != null && !valorActual.trim().isEmpty()) {
+            // Normalizar todas las palabras a minúsculas al cargarlas
+            palabrasSet.addAll(Arrays.stream(valorActual.split(","))
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList()));
+        }
+
+        // Eliminar la palabra
+        boolean removed = palabrasSet.remove(palabraNormalizada);
+        if (!removed) {
+            throw new IllegalArgumentException("La palabra '" + palabraNormalizada + "' no existe en el filtro");
+        }
+
+        // Guardar actualización
+        String nuevoValor = String.join(",", palabrasSet);
+        config.setValor(nuevoValor);
+        configuracionRepository.save(config);
+
+        // Retornar lista actualizada
+        return new ArrayList<>(palabrasSet);
+    }
+
+    /**
+     * Obtiene la lista completa de palabras prohibidas para visualización en administración.
+     * Retorna las palabras normalizadas en minúsculas.
+     * 
+     * @return lista de palabras prohibidas
+     */
+    public List<String> obtenerPalabrasProhibidasAdmin() {
+        return configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS)
+                .map(Configuracion::getValor)
+                .map(v -> {
+                    if (v == null || v.trim().isEmpty()) {
+                        return List.<String>of();
+                    }
+                    return Arrays.stream(v.split(","))
+                            .map(String::trim)
+                            .map(String::toLowerCase)  // Normalizar a minúsculas
+                            .filter(s -> !s.isEmpty())
+                            .collect(Collectors.toList());
+                })
+                .orElse(List.of());
+    }
 }
