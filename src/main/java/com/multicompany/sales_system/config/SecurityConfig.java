@@ -75,6 +75,34 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/users/{cedula}/role")
                     .hasRole("ADMIN")
 
+                // --- CONFIGURACIÓN DEL SISTEMA (solo ADMIN) ---
+                .requestMatchers(HttpMethod.GET, "/api/configuracion/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/configuracion/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/configuracion/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/configuracion/**")
+                    .hasRole("ADMIN")
+
+                // --- CATEGORÍAS ---
+                // Lectura pública de categorías activas
+                .requestMatchers(HttpMethod.GET, "/api/categorias/activas/**")
+                    .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/categorias/activas")
+                    .permitAll()
+                // Gestión de categorías (solo ADMIN)
+                .requestMatchers(HttpMethod.GET, "/api/categorias/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/categorias/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/categorias/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/categorias/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/categorias/**")
+                    .hasRole("ADMIN")
+
                 // --- EL RESTO REQUIERE AUTENTICACIÓN ---
                 .anyRequest().authenticated()
             )
