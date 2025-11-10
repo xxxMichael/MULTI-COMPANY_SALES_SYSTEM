@@ -18,5 +18,5 @@ public class Configuracion {
 
     private String valor;
 
-    public enum Opcion { FILTRO_PALABRAS, REGLAS_USO, PRIVACIDAD }
+    public enum Opcion { FILTRO_PALABRAS, REGLAS_USO, PRIVACIDAD, EXPIRACION_CONFIG }
 }

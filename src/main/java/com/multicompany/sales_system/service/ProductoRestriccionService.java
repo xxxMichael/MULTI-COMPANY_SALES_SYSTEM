@@ -67,7 +67,7 @@ public class ProductoRestriccionService {
                      producto.getIdProducto(), 
                      producto.getFechaExpiracion());
             
-            producto.setEstado(EstadoProducto.OCULTO);
+            producto.setEstado(EstadoProducto.ELIMINADO);
             productRepository.save(producto);
             return true;
         }

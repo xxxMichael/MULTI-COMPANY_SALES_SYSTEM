@@ -10,6 +10,7 @@ import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.ServicioRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
 import com.multicompany.sales_system.repository.CategoriaRepository;
+import com.multicompany.sales_system.service.ConfiguracionService;
 import com.multicompany.sales_system.service.ProductService;
 import com.multicompany.sales_system.service.DetectorService;
 import com.multicompany.sales_system.service.IncidenciaService;
@@ -36,6 +37,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoriaRepository categoriaRepository;
     private final DetectorService detectorService;
     private final IncidenciaService incidenciaService;
+    private final ConfiguracionService configuracionService;
 
     @Override
     public ProductResponseDTO createProduct(ProductRequestDTO productRequestDTO) {
@@ -69,6 +71,11 @@ public class ProductServiceImpl implements ProductService {
         producto.setUbicacion(productRequestDTO.getUbicacion());
         producto.setDisponibilidad(productRequestDTO.getDisponibilidad());
         producto.setFechaPublicacion(LocalDateTime.now());
+
+        // Calcular y establecer la fecha de expiración basándose en la configuración
+        int diasExpiracion = configuracionService.getDiasExpiracion();
+        producto.setFechaExpiracion(LocalDateTime.now().plusDays(diasExpiracion));
+
         producto.setVendedor(vendedor);
         producto.setCategoria(categoria);
 
