@@ -27,4 +27,21 @@ public class ConfiguracionService {
                         .collect(Collectors.toList()))
                 .orElse(List.of());
     }
+
+    /**
+     * Devuelve la cantidad de días configurados para la expiración de productos.
+     * Por defecto retorna 30 días si no hay configuración regfistrada.
+     */
+    public int getDiasExpiracion() {
+        return configuracionRepository.findByOpcion(Configuracion.Opcion.EXPIRACION_CONFIG)
+                .map(Configuracion::getValor)
+                .map(valor -> {
+                    try {
+                        return Integer.parseInt(valor.trim());
+                    } catch (NumberFormatException e) {
+                        return 30; 
+                    }
+                })
+                .orElse(30); 
+    }
 }
