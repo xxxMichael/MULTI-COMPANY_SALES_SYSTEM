@@ -2,6 +2,7 @@ package com.multicompany.sales_system.service.impl;
 
 import com.multicompany.sales_system.service.FileStorageService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -14,8 +15,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -28,14 +32,31 @@ public class FileStorageServiceImpl implements FileStorageService {
     private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList(
             "image/jpeg", "image/png", "image/gif", "image/webp");
 
-    public FileStorageServiceImpl() {
-        this.fileStorageLocation = Paths.get("C:/productos").toAbsolutePath().normalize();
+    /**
+     * Constructor que recibe la ruta de almacenamiento desde configuración.
+     * Permite adaptarse a diferentes entornos (local, cloud, Docker).
+     * 
+     * @param uploadDir Path configurable desde application.properties o variables de entorno
+     */
+    public FileStorageServiceImpl(@Value("${file.upload-dir}") String uploadDir) {
+        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
 
         try {
+            // Crear directorio si no existe
             Files.createDirectories(this.fileStorageLocation);
-            log.info("Directorio de almacenamiento creado/verificado: {}", this.fileStorageLocation);
+            log.info("✅ Directorio de almacenamiento configurado: {}", this.fileStorageLocation);
+            
+            // Validar permisos de escritura
+            if (!Files.isWritable(this.fileStorageLocation)) {
+                log.error("❌ El directorio no tiene permisos de escritura: {}", this.fileStorageLocation);
+                throw new RuntimeException("Sin permisos de escritura en: " + this.fileStorageLocation);
+            }
+            
+            log.info("✅ Permisos de escritura verificados correctamente");
+            
         } catch (IOException ex) {
-            throw new RuntimeException("No se pudo crear el directorio de almacenamiento de archivos.", ex);
+            log.error("❌ Error al crear directorio de almacenamiento: {}", uploadDir, ex);
+            throw new RuntimeException("No se pudo crear el directorio de almacenamiento: " + uploadDir, ex);
         }
     }
 

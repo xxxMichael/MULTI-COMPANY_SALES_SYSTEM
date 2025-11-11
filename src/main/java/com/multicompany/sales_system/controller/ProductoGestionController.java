@@ -29,7 +29,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/productos/gestion")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class ProductoGestionController {
 

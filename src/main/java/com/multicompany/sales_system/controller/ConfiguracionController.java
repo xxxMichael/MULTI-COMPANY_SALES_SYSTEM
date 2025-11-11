@@ -64,6 +64,7 @@ public class ConfiguracionController {
         return ResponseEntity.ok(response);
     }
 
+
     /**
      * Obtiene la lista de palabras prohibidas.
      * 
@@ -125,6 +126,13 @@ public class ConfiguracionController {
         );
         
         return ResponseEntity.ok(response);
+    }
+
+    // ========================= MANEJO DE EXCEPCIONES =========================
+    
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
     }
 
 }
