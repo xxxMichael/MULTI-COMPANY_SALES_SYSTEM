@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Aplicación Spring Boot
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sales-system-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Aplicación
+      - APP_NAME=${APP_NAME}
+      - APP_VERIFICATION_CODE_LENGTH=${APP_VERIFICATION_CODE_LENGTH}
+      - APP_VERIFICATION_CODE_TTL_MINUTES=${APP_VERIFICATION_CODE_TTL_MINUTES}
+      - APP_VERIFICATION_MAX_ATTEMPTS=${APP_VERIFICATION_MAX_ATTEMPTS}
+      
+      # Base de datos (conecta al contenedor 'db')
+      - DB_URL=jdbc:postgresql://db:5432/${POSTGRES_DB}
+      - DB_USERNAME=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      
+      # Email
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      
+      # JWT
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXP_MINUTES=${JWT_EXP_MINUTES}
+      
+      # Admin Key
+      - APP_ADMIN_KEY=${APP_ADMIN_KEY}
+      
+      # Upload directory (usa volumen montado)
+      - UPLOAD_DIR=/app/uploads
+      
+      # Java options
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    
+    volumes:
+      # Volumen persistente para imágenes
+      - ./uploads:/app/uploads
+    
+    depends_on:
+      - db
+    
+    networks:
+      - app-network
+    
+    restart: unless-stopped
+
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: sales-system-db
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-sales_system}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-root}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Volumen persistente para datos de PostgreSQL
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
