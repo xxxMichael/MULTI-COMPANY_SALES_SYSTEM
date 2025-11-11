@@ -44,7 +44,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Variables de entorno por defecto (pueden sobrescribirse)
 ENV UPLOAD_DIR=/app/uploads
-ENV JAVA_OPTS="-Xmx512m -Xms256m"
 
 # Comando de inicio
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# Usa exec form con shell para permitir expansión de variables
+ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS:--Xmx512m -Xms256m} -jar app.jar"]
