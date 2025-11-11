@@ -1,3 +1,7 @@
+# ============================================
+# Multi-stage Dockerfile for Railway Deploy
+# ============================================
+
 # Etapa 1: Build
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
