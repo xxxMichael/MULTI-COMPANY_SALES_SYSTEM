@@ -6,7 +6,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "java $JAVA_OPTS -jar app.jar"
+# startCommand removido - usamos ENTRYPOINT del Dockerfile
 healthcheckPath = "/actuator/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
