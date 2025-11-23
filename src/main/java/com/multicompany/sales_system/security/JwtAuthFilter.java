@@ -31,13 +31,33 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        String path = request.getServletPath();
+
+        // 🔹 Rutas públicas que NO deben pasar por el filtro JWT
+        if (path.startsWith("/api/users/login")
+                || path.startsWith("/api/users/register")
+                || path.startsWith("/api/users/verify-email")
+                || path.startsWith("/api/users/resend-code")
+                || path.startsWith("/api/users/recover-password")
+                || path.startsWith("/api/users/reset-password")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/api/photos/image")
+                || path.startsWith("/actuator/health")
+                || path.startsWith("/public")) {
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 🔹 Leer cabecera Authorization
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
+        String token = header.substring(7); // Eliminar "Bearer "
         try {
             if (jwt.isTokenValid(token)) {
                 Claims claims = jwt.claims(token);
@@ -45,14 +65,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String role = (String) claims.get("role");
                 String estado = (String) claims.get("estado");
 
-                // Verificar si el usuario está suspendido o eliminado
-                if ("SUSPENDIDO".equals(estado) || "ELIMINADO".equals(estado)) {
+                // 🔹 Validar estado del usuario
+                if ("SUSPENDIDO".equalsIgnoreCase(estado) || "ELIMINADO".equalsIgnoreCase(estado)) {
                     SecurityContextHolder.clearContext();
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
                     response.getWriter().write("{\"error\": \"Cuenta " + estado.toLowerCase() + ". No se permite el acceso.\"}");
                     return;
                 }
 
+                // 🔹 Asignar autenticación válida al contexto
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
                 var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
