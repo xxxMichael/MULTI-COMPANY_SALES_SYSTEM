@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         jdk 'jdk17'
-        maven 'maven3'
+        maven 'maven-3.9'   // ⬅ ESTE ES EL CAMBIO CORRECTO
     }
 
     environment {
