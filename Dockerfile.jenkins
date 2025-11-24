@@ -1,0 +1,21 @@
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Instalar Maven
+RUN apt-get update && \
+    apt-get install -y maven && \
+    apt-get clean
+
+# Instalar Docker CLI
+RUN apt-get update && \
+    apt-get install -y docker.io && \
+    apt-get clean
+
+# Instalar Git (ya viene, pero por si acaso)
+RUN apt-get install -y git
+
+# Permisos
+RUN usermod -aG docker jenkins
+
+USER jenkins
