@@ -6,8 +6,11 @@ pipeline {
         maven 'maven-3.9.6'  
     }
 
-    stages {
+    environment {
+        APP_NAME = 'multi-company-sales'
+    }
 
+    stages {
         stage('Build Backend') {
             steps {
                 sh 'mvn clean package'
