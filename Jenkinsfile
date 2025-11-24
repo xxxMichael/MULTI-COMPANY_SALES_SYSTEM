@@ -10,7 +10,7 @@ pipeline {
 
         stage('Build Backend') {
             steps {
-                sh 'mvn -f backend/pom.xml clean package'
+                sh 'mvn clean package'
             }
         }
 
