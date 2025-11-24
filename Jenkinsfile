@@ -9,9 +9,16 @@ pipeline {
         }
 
         stage('Build Maven') {
-            steps {
-                sh 'mvn clean package -DskipTests'
-            }
+            tools {
+    maven 'maven-3.9'
+    jdk 'jdk17'
+}
+
+stage('Build Maven') {
+    steps {
+        sh 'mvn clean package -DskipTests'
+    }
+}
         }
 
         stage('Build Docker') {
