@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multi-company-deployment
+  namespace: multi-company
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multi-company
+  template:
+    metadata:
+      labels:
+        app: multi-company
+    spec:
+      containers:
+        - name: multi-company
+          image: multi-company-sales-system
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 9090
+          env:
+            - name: APP_NAME
+              value: "Multi-Company Sales System"
+
+            - name: APP_VERIFICATION_CODE_LENGTH
+              value: "6"
+
+            - name: APP_VERIFICATION_CODE_TTL_MINUTES
+              value: "15"
+
+            - name: APP_VERIFICATION_MAX_ATTEMPTS
+              value: "5"
+
+            - name: DB_URL
+              value: "jdbc:postgresql://mc_postgres:5432/Sales"
+
+            - name: DB_USERNAME
+              value: "postgres"
+
+            - name: DB_PASSWORD
+              value: "12345678"
+
+            - name: SMTP_HOST
+              value: "smtp.gmail.com"
+
+            - name: SMTP_PORT
+              value: "587"
+
+            - name: SMTP_USER
+              value: "qpan609@gmail.com"
+
+            - name: SMTP_PASS
+              value: "jpqhssapqiusqenz"
+
+            - name: SMTP_AUTH
+              value: "true"
+
+            - name: SMTP_STARTTLS
+              value: "true"
+
+            - name: APP_ADMIN_KEY
+              value: "SuperClaveUltraSegura123"
+
+            - name: JWT_SECRET
+              value: "qP6B82/hRz2KeC0I5VgN0SglSk0wQezpA2S+KnjdQfE="
+
+            - name: JWT_EXP_MINUTES
+              value: "60"
