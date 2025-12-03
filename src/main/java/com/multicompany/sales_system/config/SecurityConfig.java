@@ -21,12 +21,14 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
+        http
             .csrf(csrf -> csrf.disable())
-            .cors(Customizer.withDefaults()) // Usa la configuración de CorsConfig
+            .cors(Customizer.withDefaults())
             .authorizeHttpRequests(reg -> reg
+                // --- IMPORTANTE: OPTIONS debe ser lo primero ---
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
                 // --- RUTAS PÚBLICAS ---
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ⚠️ IMPORTANTE para preflight CORS
                 .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/verify-email").permitAll()
@@ -106,9 +108,12 @@ public class SecurityConfig {
 
                 // --- EL RESTO REQUIERE AUTENTICACIÓN ---
                 .anyRequest().authenticated()
-            )
-            .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
-            .build();
+            );
+        
+        // Agregar el filtro JWT DESPUÉS de configurar las reglas
+        http.addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
     }
 
     // Nota: la configuración CORS se maneja desde CorsConfig.
