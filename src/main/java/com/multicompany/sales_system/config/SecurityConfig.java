@@ -23,9 +23,10 @@ public class SecurityConfig {
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
-            .cors(Customizer.withDefaults())
+            .cors(Customizer.withDefaults()) // Usa la configuración de CorsConfig
             .authorizeHttpRequests(reg -> reg
                 // --- RUTAS PÚBLICAS ---
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ⚠️ IMPORTANTE para preflight CORS
                 .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/verify-email").permitAll()
