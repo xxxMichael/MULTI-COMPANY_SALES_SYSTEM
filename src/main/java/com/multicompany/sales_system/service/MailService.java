@@ -16,13 +16,21 @@ public class MailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
     
+    @Value("${spring.mail.host:smtp.gmail.com}")
+    private String mailHost;
+    
+    @Value("${spring.mail.port:587}")
+    private String mailPort;
+    
     public MailService(JavaMailSender sender) { 
-        this.sender = sender; 
+        this.sender = sender;
+        logger.info("MailService inicializado - Host: {}, Port: {}", mailHost, mailPort);
     }
 
     public void sendPlain(String to, String subject, String body) {
         try {
-            logger.info("Enviando correo de verificación a: {}", to);
+            logger.info("Intentando enviar correo - De: {}, Para: {}, Host: {}, Port: {}", 
+                fromEmail, to, mailHost, mailPort);
             
             SimpleMailMessage msg = new SimpleMailMessage();
             msg.setFrom(fromEmail);
@@ -31,11 +39,13 @@ public class MailService {
             msg.setText(body);
             
             sender.send(msg);
-            logger.info("Correo enviado exitosamente a: {}", to);
+            logger.info("✅ Correo enviado exitosamente a: {}", to);
             
         } catch (Exception e) {
-            logger.error("Error al enviar correo a {}: {}", to, e.getMessage(), e);
-            throw new RuntimeException("Error al enviar correo de verificación", e);
+            logger.error("❌ Error al enviar correo a {}: {}", to, e.getMessage(), e);
+            logger.error("Detalles de configuración - Host: {}, Port: {}, User: {}", 
+                mailHost, mailPort, fromEmail);
+            throw new RuntimeException("Error al enviar correo de verificación: " + e.getMessage(), e);
         }
     }
     
