@@ -28,10 +28,8 @@ WORKDIR /app
 RUN addgroup -g 1001 -S appuser && \
     adduser -u 1001 -S appuser -G appuser
 
-# Crear directorio para uploads con permisos correctos
-RUN mkdir -p /app/uploads && \
-    chown -R appuser:appuser /app/uploads && \
-    chmod 755 /app/uploads
+# NO crear /app/uploads aquí - Railway montará el volumen
+# El volumen se monta con permisos correctos automáticamente
 
 # Copiar JAR desde etapa de build
 COPY --from=build /app/target/*.jar app.jar
