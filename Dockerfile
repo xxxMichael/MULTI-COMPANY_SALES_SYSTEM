@@ -24,18 +24,17 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-# Instalar wget para healthcheck
-RUN apk add --no-cache wget
+# Instalar utilidades necesarias
+RUN apk add --no-cache wget su-exec
 
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S appuser && \
     adduser -u 1001 -S appuser -G appuser
 
-# Crear directorio uploads y dar permisos al usuario
-# Railway sobrescribirá con el volumen, pero esto asegura permisos base
+# Crear directorio uploads con permisos amplios
+# Railway montará el volumen aquí y el script ajustará permisos
 RUN mkdir -p /app/uploads && \
-    chown -R appuser:appuser /app/uploads && \
-    chmod -R 775 /app/uploads
+    chmod -R 777 /app/uploads
 
 # Copiar JAR desde etapa de build
 COPY --from=build /app/target/*.jar app.jar
@@ -43,13 +42,10 @@ COPY --from=build /app/target/*.jar app.jar
 # Copiar script de entrada
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Dar permisos de ejecución al script y ownership
-RUN chmod +x /app/docker-entrypoint.sh && \
-    chown appuser:appuser /app/docker-entrypoint.sh && \
-    chown appuser:appuser app.jar
+# Dar permisos de ejecución al script
+RUN chmod +x /app/docker-entrypoint.sh
 
-# Cambiar a usuario no-root
-USER appuser
+# NO cambiar a usuario no-root aquí - el script lo hará después de ajustar permisos
 
 # Exponer puerto
 EXPOSE 8080
