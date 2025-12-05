@@ -78,6 +78,9 @@ public class FileStorageServiceImpl implements FileStorageService {
             throw new RuntimeException("El archivo excede el tamaño máximo permitido de 10MB");
         }
 
+        // Asegurar que el directorio existe y tiene permisos correctos
+        ensureDirectoryExistsAndWritable();
+
         // Obtener la extensión del archivo original
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
         String fileExtension = "";
@@ -91,11 +94,61 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         // Copiar archivo a la ubicación de destino
         Path targetLocation = this.fileStorageLocation.resolve(newFilename);
-        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-        log.info("Archivo guardado exitosamente: {}", newFilename);
+        
+        try {
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            log.info("✅ Archivo guardado exitosamente: {}", newFilename);
+        } catch (IOException e) {
+            log.error("❌ Error al guardar archivo. Directorio: {}, Archivo: {}", this.fileStorageLocation, newFilename);
+            log.error("Permisos del directorio: readable={}, writable={}, executable={}", 
+                Files.isReadable(this.fileStorageLocation),
+                Files.isWritable(this.fileStorageLocation),
+                Files.isExecutable(this.fileStorageLocation));
+            throw new IOException("No se pudo guardar el archivo: " + e.getMessage(), e);
+        }
 
         return newFilename;
+    }
+    
+    /**
+     * Asegura que el directorio de almacenamiento existe y tiene permisos de escritura.
+     * Intenta crear el directorio y ajustar permisos si es necesario.
+     */
+    private void ensureDirectoryExistsAndWritable() throws IOException {
+        // Crear directorio si no existe
+        if (!Files.exists(this.fileStorageLocation)) {
+            log.info("📁 Creando directorio de almacenamiento: {}", this.fileStorageLocation);
+            Files.createDirectories(this.fileStorageLocation);
+        }
+        
+        // Verificar permisos de escritura
+        if (!Files.isWritable(this.fileStorageLocation)) {
+            log.error("❌ El directorio no tiene permisos de escritura: {}", this.fileStorageLocation);
+            
+            // Intentar ajustar permisos en sistemas POSIX (Linux/Railway)
+            try {
+                Set<PosixFilePermission> perms = new HashSet<>();
+                perms.add(PosixFilePermission.OWNER_READ);
+                perms.add(PosixFilePermission.OWNER_WRITE);
+                perms.add(PosixFilePermission.OWNER_EXECUTE);
+                perms.add(PosixFilePermission.GROUP_READ);
+                perms.add(PosixFilePermission.GROUP_WRITE);
+                perms.add(PosixFilePermission.GROUP_EXECUTE);
+                
+                Files.setPosixFilePermissions(this.fileStorageLocation, perms);
+                log.info("✅ Permisos POSIX ajustados correctamente (rwxrwx---)");
+                
+            } catch (UnsupportedOperationException e) {
+                log.warn("⚠️ Sistema de archivos no soporta permisos POSIX (probablemente Windows)");
+            } catch (IOException e) {
+                log.error("❌ No se pudieron ajustar los permisos: {}", e.getMessage());
+            }
+            
+            // Verificar nuevamente después de intentar ajustar
+            if (!Files.isWritable(this.fileStorageLocation)) {
+                throw new IOException("El directorio no tiene permisos de escritura y no se pudieron ajustar: " + this.fileStorageLocation);
+            }
+        }
     }
 
     @Override

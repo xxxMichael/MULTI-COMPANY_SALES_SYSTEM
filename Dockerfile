@@ -24,15 +24,29 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
+# Instalar wget para healthcheck
+RUN apk add --no-cache wget
+
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S appuser && \
     adduser -u 1001 -S appuser -G appuser
 
-# NO crear /app/uploads aquí - Railway montará el volumen
-# El volumen se monta con permisos correctos automáticamente
+# Crear directorio uploads y dar permisos al usuario
+# Railway sobrescribirá con el volumen, pero esto asegura permisos base
+RUN mkdir -p /app/uploads && \
+    chown -R appuser:appuser /app/uploads && \
+    chmod -R 775 /app/uploads
 
 # Copiar JAR desde etapa de build
 COPY --from=build /app/target/*.jar app.jar
+
+# Copiar script de entrada
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
+# Dar permisos de ejecución al script y ownership
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chown appuser:appuser /app/docker-entrypoint.sh && \
+    chown appuser:appuser app.jar
 
 # Cambiar a usuario no-root
 USER appuser
@@ -48,5 +62,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 ENV UPLOAD_DIR=/app/uploads
 
 # Comando de inicio
-# Usa exec form con shell para permitir expansión de variables
-ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS:--Xmx512m -Xms256m} -jar app.jar"]
+# Usa el script de entrada que maneja permisos de volumen
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
