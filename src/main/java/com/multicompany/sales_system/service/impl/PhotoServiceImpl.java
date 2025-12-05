@@ -66,7 +66,8 @@ public class PhotoServiceImpl implements PhotoService {
             return convertToResponseDTO(savedPhoto);
             
         } catch (Exception e) {
-            log.error("Error al guardar foto en BD. Eliminando archivo físico: {}", filename, e);
+            log.error("❌ ERROR al guardar foto en BD. Tipo: {}, Mensaje: {}", e.getClass().getName(), e.getMessage());
+            log.error("Stack trace completo:", e);
             
             // Si falla la transacción de BD, eliminar el archivo físico
             if (filename != null) {
@@ -78,12 +79,22 @@ public class PhotoServiceImpl implements PhotoService {
                 }
             }
             
-            throw new RuntimeException("Error al guardar la foto: " + e.getMessage(), e);
+            // Construir mensaje de error detallado
+            String detailedMessage = "Error al guardar la foto en BD";
+            if (e.getCause() != null) {
+                detailedMessage += " - Causa: " + e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage();
+            } else {
+                detailedMessage += " - " + e.getClass().getSimpleName() + ": " + e.getMessage();
+            }
+            
+            throw new RuntimeException(detailedMessage, e);
         }
     }
 
     @Override
     public List<PhotoResponseDTO> uploadMultiplePhotos(Long productId, List<MultipartFile> files) throws IOException {
+        log.info("📤 Iniciando subida múltiple de {} fotos para producto ID: {}", files != null ? files.size() : 0, productId);
+        
         if (files == null || files.isEmpty()) {
             throw new RuntimeException("Debe proporcionar al menos un archivo");
         }
@@ -95,26 +106,41 @@ public class PhotoServiceImpl implements PhotoService {
 
         List<PhotoResponseDTO> uploadedPhotos = new ArrayList<>();
 
-        for (MultipartFile file : files) {
+        for (int i = 0; i < files.size(); i++) {
+            MultipartFile file = files.get(i);
+            log.info("📷 Procesando foto {}/{}: {} ({})", i + 1, files.size(), file.getOriginalFilename(), file.getSize() + " bytes");
+            
             try {
                 PhotoResponseDTO photo = uploadPhoto(productId, file);
                 uploadedPhotos.add(photo);
+                log.info("✅ Foto {}/{} subida exitosamente: ID {}", i + 1, files.size(), photo.getIdFoto());
             } catch (Exception e) {
                 // Si falla alguna foto, eliminar las que ya se subieron
-                log.error("Error al subir foto, revertiendo cambios: {}", e.getMessage());
+                log.error("❌ Error al subir foto {}/{}: {}", i + 1, files.size(), e.getMessage());
+                log.error("🔄 Revertiendo {} fotos subidas previamente", uploadedPhotos.size());
 
                 for (PhotoResponseDTO uploadedPhoto : uploadedPhotos) {
                     try {
                         deletePhoto(uploadedPhoto.getIdFoto());
+                        log.info("🗑️ Foto ID {} eliminada durante rollback", uploadedPhoto.getIdFoto());
                     } catch (Exception ex) {
-                        log.error("Error al eliminar foto durante rollback: {}", ex.getMessage());
+                        log.error("⚠️ Error al eliminar foto {} durante rollback: {}", uploadedPhoto.getIdFoto(), ex.getMessage());
                     }
                 }
 
-                throw new RuntimeException("Error al subir las fotos: " + e.getMessage(), e);
+                // Preservar la causa raíz completa
+                String detailedMessage = "Error al subir las fotos";
+                Throwable rootCause = e;
+                while (rootCause.getCause() != null) {
+                    rootCause = rootCause.getCause();
+                }
+                detailedMessage += " - Causa raíz: " + rootCause.getClass().getSimpleName() + ": " + rootCause.getMessage();
+                
+                throw new RuntimeException(detailedMessage, e);
             }
         }
 
+        log.info("✅ Subida múltiple completada: {} fotos para producto {}", uploadedPhotos.size(), productId);
         return uploadedPhotos;
     }
 

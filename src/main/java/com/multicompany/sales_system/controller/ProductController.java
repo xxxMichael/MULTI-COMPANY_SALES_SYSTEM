@@ -8,6 +8,7 @@ import com.multicompany.sales_system.service.PhotoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
+@Slf4j
 public class ProductController {
 
     private final ProductService productService;
@@ -66,8 +68,22 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.CREATED).body(productWithPhotos);
 
         } catch (Exception e) {
+            log.error("❌ Error al crear producto con fotos:", e);
+            
             Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al crear el producto: " + e.getMessage());
+            
+            // Buscar la causa raíz para un mensaje más útil
+            Throwable rootCause = e;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            
+            String errorMessage = "Error al crear el producto: " + e.getMessage();
+            if (rootCause != e) {
+                errorMessage += " (Causa: " + rootCause.getClass().getSimpleName() + ": " + rootCause.getMessage() + ")";
+            }
+            
+            error.put("error", errorMessage);
             return ResponseEntity.badRequest().body(error);
         }
     }
