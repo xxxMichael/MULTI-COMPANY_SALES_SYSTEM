@@ -53,6 +53,10 @@ public class UsuarioServiceImpl implements UsuarioService {
     // 🔑 Clave maestra desde .env
     @Value("${app.admin.key}")
     private String adminKey;
+    
+    // 🌐 URL del frontend
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     // ==========================
     // Registro general (siempre USER)
@@ -303,8 +307,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         System.out.println("[RECUPERACION] Guardado en BD: " + usuario.getRecoveryCode() + " | "
                 + usuario.getRecoveryCodeExpiresAt());
 
-        // Construye el enlace de recuperación (ajusta la URL según tu frontend)
-        String recoveryLink = "http://localhost:5173/reset-password?code=" + recoveryCode;
+        // Construye el enlace de recuperación usando la URL configurada
+        String recoveryLink = frontendUrl + "/reset-password?code=" + recoveryCode;
 
         mail.sendPasswordRecoveryEmail(usuario.getCorreo(), usuario.getNombre(), recoveryLink);
     }
