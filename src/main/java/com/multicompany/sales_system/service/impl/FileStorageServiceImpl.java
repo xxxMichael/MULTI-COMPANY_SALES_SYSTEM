@@ -46,13 +46,14 @@ public class FileStorageServiceImpl implements FileStorageService {
             Files.createDirectories(this.fileStorageLocation);
             log.info("✅ Directorio de almacenamiento configurado: {}", this.fileStorageLocation);
             
-            // Validar permisos de escritura
+            // Validar permisos de escritura (no fallar si Railway aún no montó el volumen)
             if (!Files.isWritable(this.fileStorageLocation)) {
-                log.error("❌ El directorio no tiene permisos de escritura: {}", this.fileStorageLocation);
-                throw new RuntimeException("Sin permisos de escritura en: " + this.fileStorageLocation);
+                log.warn("⚠️ El directorio no tiene permisos de escritura aún: {}", this.fileStorageLocation);
+                log.warn("⚠️ Esto puede ser temporal si Railway está montando el volumen...");
+                // NO lanzar excepción - verificar permisos al intentar guardar archivo
+            } else {
+                log.info("✅ Permisos de escritura verificados correctamente");
             }
-            
-            log.info("✅ Permisos de escritura verificados correctamente");
             
         } catch (IOException ex) {
             log.error("❌ Error al crear directorio de almacenamiento: {}", uploadDir, ex);
