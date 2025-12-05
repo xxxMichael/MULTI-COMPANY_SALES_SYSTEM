@@ -30,9 +30,13 @@ public class PhotoServiceImpl implements PhotoService {
 
     @Override
     public PhotoResponseDTO uploadPhoto(Long productId, MultipartFile file) throws IOException {
+        log.info("Iniciando subida de foto para producto ID: {}", productId);
+        
         // Validar que el producto exista
         Producto producto = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + productId));
+        
+        log.info("Producto encontrado: {} (ID: {})", producto.getNombre(), producto.getIdProducto());
 
         // Validar que sea una imagen válida
         if (!fileStorageService.isValidImage(file)) {
@@ -45,17 +49,37 @@ public class PhotoServiceImpl implements PhotoService {
         }
 
         // Guardar el archivo físicamente
-        String filename = fileStorageService.storeFile(file, productId);
+        String filename = null;
+        try {
+            filename = fileStorageService.storeFile(file, productId);
+            log.info("Archivo físico guardado exitosamente: {}", filename);
 
-        // Crear el registro en la base de datos
-        FotoProducto foto = new FotoProducto();
-        foto.setUrl(filename); // Ahora guardamos el nombre del archivo, no una URL externa
-        foto.setProducto(producto);
+            // Crear el registro en la base de datos
+            FotoProducto foto = new FotoProducto();
+            foto.setUrl(filename);
+            foto.setProducto(producto);
 
-        FotoProducto savedPhoto = photoRepository.save(foto);
-        log.info("Foto guardada exitosamente para producto {}: {}", productId, filename);
+            log.info("Intentando guardar foto en BD con URL: {}", filename);
+            FotoProducto savedPhoto = photoRepository.save(foto);
+            log.info("Foto guardada exitosamente en BD con ID: {}", savedPhoto.getIdFoto());
 
-        return convertToResponseDTO(savedPhoto);
+            return convertToResponseDTO(savedPhoto);
+            
+        } catch (Exception e) {
+            log.error("Error al guardar foto en BD. Eliminando archivo físico: {}", filename, e);
+            
+            // Si falla la transacción de BD, eliminar el archivo físico
+            if (filename != null) {
+                try {
+                    fileStorageService.deleteFile(filename);
+                    log.info("Archivo físico eliminado exitosamente durante rollback");
+                } catch (Exception ex) {
+                    log.error("Error al eliminar archivo durante rollback: {}", filename, ex);
+                }
+            }
+            
+            throw new RuntimeException("Error al guardar la foto: " + e.getMessage(), e);
+        }
     }
 
     @Override
