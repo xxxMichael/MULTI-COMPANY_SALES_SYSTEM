@@ -1,6 +1,7 @@
 package com.multicompany.sales_system.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.multicompany.sales_system.model.Configuracion;
@@ -11,6 +12,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ConfiguracionService {
     private final ConfiguracionRepository configuracionRepository;
 
@@ -18,14 +20,28 @@ public class ConfiguracionService {
      * Devuelve la lista de palabras prohibidas, limpias y en minúsculas.
      */
     public List<String> getPalabrasProhibidas() {
-        return configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS) // ✅ Usar enum
-                .map(Configuracion::getValor)
-                .map(v -> Arrays.stream(v.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .map(String::toLowerCase)
-                        .collect(Collectors.toList()))
-                .orElse(List.of());
+        log.debug("🔍 [CONFIG] Consultando palabras prohibidas en BD...");
+        
+        Optional<Configuracion> config = configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS);
+        
+        if (config.isEmpty()) {
+            log.warn("⚠️ [CONFIG] No existe configuración de FILTRO_PALABRAS en BD");
+            return List.of();
+        }
+        
+        String valor = config.get().getValor();
+        log.debug("📋 [CONFIG] Valor raw de BD: '{}'", valor);
+        
+        List<String> palabras = Arrays.stream(valor.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+        
+        log.debug("✅ [CONFIG] Palabras procesadas: {}", palabras);
+        log.debug("✅ [CONFIG] Total palabras: {}", palabras.size());
+        
+        return palabras;
     }
 
     /**
