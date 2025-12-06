@@ -20,28 +20,41 @@ public class ConfiguracionService {
      * Devuelve la lista de palabras prohibidas, limpias y en minúsculas.
      */
     public List<String> getPalabrasProhibidas() {
-        log.debug("🔍 [CONFIG] Consultando palabras prohibidas en BD...");
+        log.info("🔍 [CONFIG] ==================== CONSULTANDO PALABRAS PROHIBIDAS ====================");
         
-        Optional<Configuracion> config = configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS);
-        
-        if (config.isEmpty()) {
-            log.warn("⚠️ [CONFIG] No existe configuración de FILTRO_PALABRAS en BD");
+        try {
+            Optional<Configuracion> config = configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS);
+            
+            if (config.isEmpty()) {
+                log.error("❌ [CONFIG] ¡CRÍTICO! No existe registro de FILTRO_PALABRAS en la tabla configuracion");
+                log.error("❌ [CONFIG] Ejecuta este SQL: INSERT INTO configuracion (opcion, valor) VALUES ('FILTRO_PALABRAS', 'droga,arma,estafa,ilegal');");
+                return List.of();
+            }
+            
+            String valor = config.get().getValor();
+            log.info("📋 [CONFIG] Valor raw de BD: '{}'", valor);
+            
+            if (valor == null || valor.trim().isEmpty()) {
+                log.error("❌ [CONFIG] El valor de FILTRO_PALABRAS está vacío o NULL");
+                return List.of();
+            }
+            
+            List<String> palabras = Arrays.stream(valor.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toList());
+            
+            log.info("✅ [CONFIG] Palabras procesadas: {}", palabras);
+            log.info("✅ [CONFIG] Total palabras: {}", palabras.size());
+            log.info("✅ [CONFIG] ==================== CONSULTA COMPLETADA ====================");
+            
+            return palabras;
+            
+        } catch (Exception e) {
+            log.error("❌ [CONFIG] ERROR al consultar palabras prohibidas: {}", e.getMessage(), e);
             return List.of();
         }
-        
-        String valor = config.get().getValor();
-        log.debug("📋 [CONFIG] Valor raw de BD: '{}'", valor);
-        
-        List<String> palabras = Arrays.stream(valor.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(String::toLowerCase)
-                .collect(Collectors.toList());
-        
-        log.debug("✅ [CONFIG] Palabras procesadas: {}", palabras);
-        log.debug("✅ [CONFIG] Total palabras: {}", palabras.size());
-        
-        return palabras;
     }
 
     /**
