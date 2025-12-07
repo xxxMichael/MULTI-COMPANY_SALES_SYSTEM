@@ -89,6 +89,13 @@ public class Usuario {
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro = LocalDateTime.now();
 
+    // === Campos calculados de valoración (no persistidos) ===
+    @jakarta.persistence.Transient
+    private Double promedioValoracion;
+
+    @jakarta.persistence.Transient
+    private Long totalValoraciones;
+
     @PrePersist
     protected void onCreate() {
         if (fechaRegistro == null) fechaRegistro = LocalDateTime.now();
