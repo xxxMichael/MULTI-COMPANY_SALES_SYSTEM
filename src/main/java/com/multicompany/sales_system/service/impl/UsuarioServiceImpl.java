@@ -23,6 +23,7 @@ import com.multicompany.sales_system.model.Usuario;
 import com.multicompany.sales_system.model.enums.UsuarioRole;
 import com.multicompany.sales_system.repository.EmailVerificationRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
+import com.multicompany.sales_system.repository.ValoracionRepository;
 import com.multicompany.sales_system.security.JwtService;
 import com.multicompany.sales_system.service.MailService;
 import com.multicompany.sales_system.service.UsuarioService;
@@ -40,6 +41,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final MailService mail;
     private final PasswordEncoder encoder;
     private final JwtService jwtService;
+    private final ValoracionRepository valoracionRepo;
 
     @Value("${app.verification.code.ttl-minutes:15}")
     private int ttlMinutes;
@@ -457,6 +459,10 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     private UserResponse mapToUserResponse(Usuario usuario) {
+        // Calcular estadísticas de valoración
+        Double promedio = valoracionRepo.calcularPromedioVendedor(usuario.getIdUsuario());
+        Long total = valoracionRepo.countByVendedorIdUsuario(usuario.getIdUsuario());
+        
         return new UserResponse(
                 usuario.getIdUsuario(),
                 usuario.getCedula(),
@@ -469,6 +475,8 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuario.getRol(),
                 usuario.getEstado().name(),
                 usuario.isEmailVerificado(),
-                usuario.getFechaRegistro());
+                usuario.getFechaRegistro(),
+                promedio != null ? Math.round(promedio * 100.0) / 100.0 : null,
+                total);
     }
 }

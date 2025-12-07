@@ -23,4 +23,8 @@ public class UserResponse {
     private String estado;
     private boolean emailVerificado;
     private LocalDateTime fechaRegistro;
+    
+    // Campos de valoración
+    private Double promedioValoracion;
+    private Long totalValoraciones;
 }

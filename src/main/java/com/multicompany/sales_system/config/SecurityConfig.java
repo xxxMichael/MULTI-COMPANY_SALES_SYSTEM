@@ -109,6 +109,22 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/categorias/**")
                     .hasRole("ADMIN")
 
+                // --- VALORACIONES ---
+                // Rutas específicas primero (más específicas antes que genéricas)
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/mis-valoraciones")
+                    .authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/verificar/**")
+                    .authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/valoraciones")
+                    .authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/valoraciones/**")
+                    .hasRole("ADMIN")
+                // Consultas públicas de vendedor (al final porque es más genérica)
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/vendedor/**")
+                    .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/**")
+                    .permitAll()
+
                 // --- EL RESTO REQUIERE AUTENTICACIÓN ---
                 .anyRequest().authenticated()
             );
