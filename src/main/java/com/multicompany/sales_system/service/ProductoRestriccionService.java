@@ -165,6 +165,13 @@ public class ProductoRestriccionService {
         }
 
         producto.setEstado(nuevoEstado);
+        
+        // Si se aprueba una apelación (cambia a ACTIVO), activar la disponibilidad
+        if (nuevoEstado == EstadoProducto.ACTIVO && estadoActual == EstadoProducto.APELADO) {
+            producto.setDisponibilidad(true);
+            log.info("Producto {} reactivado. Disponibilidad establecida en true tras aprobar apelación", productoId);
+        }
+        
         productRepository.save(producto);
 
         log.info("Estado del producto {} cambiado de {} a {}. Motivo: {}", 
