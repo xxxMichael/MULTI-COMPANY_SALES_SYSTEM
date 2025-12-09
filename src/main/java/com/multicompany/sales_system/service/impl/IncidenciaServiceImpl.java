@@ -8,6 +8,7 @@ import com.multicompany.sales_system.dto.incident.IncidenciaResponseDTO;
 import com.multicompany.sales_system.model.Incidencia;
 import com.multicompany.sales_system.model.Producto;
 import com.multicompany.sales_system.model.Usuario;
+import com.multicompany.sales_system.model.enums.EstadoProducto;
 import com.multicompany.sales_system.repository.IncidenciaRepository;
 import com.multicompany.sales_system.repository.ProductRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
@@ -119,8 +120,24 @@ public class IncidenciaServiceImpl implements IncidenciaService {
     public IncidenciaResponseDTO descartar(Long idIncidencia) {
         Incidencia incidencia = incidenciaRepository.findById(idIncidencia)
                 .orElseThrow(() -> new RuntimeException("Incidencia no encontrada"));
+        
+        // Verificar si es una incidencia automática de detección
+        boolean esIncidenciaAutomatica = incidencia.getMotivo() != null && 
+                incidencia.getMotivo().contains("Contenido prohibido detectado automáticamente");
+        
         incidencia.setEstado(Incidencia.Estado.DESCARTADA);
         Incidencia incidenciaActualizada = incidenciaRepository.save(incidencia);
+        
+        // Si es incidencia automática descartada, reactivar el producto
+        if (esIncidenciaAutomatica && incidencia.getProducto() != null) {
+            Producto producto = incidencia.getProducto();
+            producto.setEstado(EstadoProducto.ACTIVO);
+            producto.setDisponibilidad(true);
+            productoRepository.save(producto);
+        }
+        
+        return toResponseDTO(incidenciaActualizada);
+    }
         return toResponseDTO(incidenciaActualizada);
     }
 
