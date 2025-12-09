@@ -107,7 +107,7 @@ public class IncidenciaServiceImpl implements IncidenciaService {
     }
 
     @Override
-    public IncidenciaResponseDTO marcarAtendida(Long idIncidencia) {
+        public IncidenciaResponseDTO marcarAtendida(Long idIncidencia) {
         Incidencia incidencia = incidenciaRepository.findById(idIncidencia)
                 .orElseThrow(() -> new RuntimeException("Incidencia no encontrada"));
         incidencia.setEstado(Incidencia.Estado.ATENDIDA);
