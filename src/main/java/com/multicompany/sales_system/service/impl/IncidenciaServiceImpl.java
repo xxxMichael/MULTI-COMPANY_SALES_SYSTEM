@@ -138,8 +138,7 @@ public class IncidenciaServiceImpl implements IncidenciaService {
         
         return toResponseDTO(incidenciaActualizada);
     }
-        return toResponseDTO(incidenciaActualizada);
-    }
+       
 
     @Override
     public IncidenciaResponseDTO crearIncidencia(IncidenciaRequestDTO requestDTO) {
