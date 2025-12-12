@@ -83,7 +83,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/categorias/activas").permitAll()
 
                         // Gestión de categorías (solo ADMIN)
-                        .requestMatchers(HttpMethod.GET, "/api/categorias/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/categorias/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/categorias/**").hasRole("ADMIN")
