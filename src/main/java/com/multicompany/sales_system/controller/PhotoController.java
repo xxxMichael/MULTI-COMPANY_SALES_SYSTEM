@@ -20,7 +20,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/photos")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class PhotoController {
 
     private final PhotoService photoService;

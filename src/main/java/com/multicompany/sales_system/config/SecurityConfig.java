@@ -21,10 +21,13 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
+        http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .authorizeHttpRequests(reg -> reg
+                // --- IMPORTANTE: OPTIONS debe ser lo primero ---
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
                 // --- RUTAS PÚBLICAS ---
                 .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
@@ -91,9 +94,12 @@ public class SecurityConfig {
                     .permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categorias/activas")
                     .permitAll()
-                // Gestión de categorías (solo ADMIN)
+                // Lectura de todas las categorías (público)
                 .requestMatchers(HttpMethod.GET, "/api/categorias/**")
-                    .hasRole("ADMIN")
+                    .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/categorias")
+                    .permitAll()
+                // Gestión de categorías (solo ADMIN)
                 .requestMatchers(HttpMethod.POST, "/api/categorias/**")
                     .hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/categorias/**")
@@ -103,11 +109,30 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/categorias/**")
                     .hasRole("ADMIN")
 
+                // --- VALORACIONES ---
+                // Rutas específicas primero (más específicas antes que genéricas)
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/mis-valoraciones")
+                    .authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/verificar/**")
+                    .authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/valoraciones")
+                    .authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/valoraciones/**")
+                    .hasRole("ADMIN")
+                // Consultas públicas de vendedor (al final porque es más genérica)
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/vendedor/**")
+                    .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/valoraciones/**")
+                    .permitAll()
+
                 // --- EL RESTO REQUIERE AUTENTICACIÓN ---
                 .anyRequest().authenticated()
-            )
-            .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
-            .build();
+            );
+        
+        // Agregar el filtro JWT DESPUÉS de configurar las reglas
+        http.addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
     }
 
     // Nota: la configuración CORS se maneja desde CorsConfig.

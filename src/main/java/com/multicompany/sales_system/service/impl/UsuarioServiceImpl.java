@@ -23,6 +23,7 @@ import com.multicompany.sales_system.model.Usuario;
 import com.multicompany.sales_system.model.enums.UsuarioRole;
 import com.multicompany.sales_system.repository.EmailVerificationRepository;
 import com.multicompany.sales_system.repository.UsuarioRepository;
+import com.multicompany.sales_system.repository.ValoracionRepository;
 import com.multicompany.sales_system.security.JwtService;
 import com.multicompany.sales_system.service.MailService;
 import com.multicompany.sales_system.service.UsuarioService;
@@ -40,6 +41,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final MailService mail;
     private final PasswordEncoder encoder;
     private final JwtService jwtService;
+    private final ValoracionRepository valoracionRepo;
 
     @Value("${app.verification.code.ttl-minutes:15}")
     private int ttlMinutes;
@@ -53,6 +55,10 @@ public class UsuarioServiceImpl implements UsuarioService {
     // 🔑 Clave maestra desde .env
     @Value("${app.admin.key}")
     private String adminKey;
+    
+    // 🌐 URL del frontend
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     // ==========================
     // Registro general (siempre USER)
@@ -303,8 +309,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         System.out.println("[RECUPERACION] Guardado en BD: " + usuario.getRecoveryCode() + " | "
                 + usuario.getRecoveryCodeExpiresAt());
 
-        // Construye el enlace de recuperación (ajusta la URL según tu frontend)
-        String recoveryLink = "http://localhost:5173/reset-password?code=" + recoveryCode;
+        // Construye el enlace de recuperación usando la URL configurada
+        String recoveryLink = frontendUrl + "/reset-password?code=" + recoveryCode;
 
         mail.sendPasswordRecoveryEmail(usuario.getCorreo(), usuario.getNombre(), recoveryLink);
     }
@@ -453,6 +459,10 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     private UserResponse mapToUserResponse(Usuario usuario) {
+        // Calcular estadísticas de valoración
+        Double promedio = valoracionRepo.calcularPromedioVendedor(usuario.getIdUsuario());
+        Long total = valoracionRepo.countByVendedorIdUsuario(usuario.getIdUsuario());
+        
         return new UserResponse(
                 usuario.getIdUsuario(),
                 usuario.getCedula(),
@@ -465,6 +475,8 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuario.getRol(),
                 usuario.getEstado().name(),
                 usuario.isEmailVerificado(),
-                usuario.getFechaRegistro());
+                usuario.getFechaRegistro(),
+                promedio != null ? Math.round(promedio * 100.0) / 100.0 : null,
+                total);
     }
 }

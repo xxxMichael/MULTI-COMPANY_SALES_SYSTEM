@@ -1,6 +1,7 @@
 package com.multicompany.sales_system.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.multicompany.sales_system.model.Configuracion;
@@ -11,6 +12,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ConfiguracionService {
     private final ConfiguracionRepository configuracionRepository;
 
@@ -18,14 +20,41 @@ public class ConfiguracionService {
      * Devuelve la lista de palabras prohibidas, limpias y en minúsculas.
      */
     public List<String> getPalabrasProhibidas() {
-        return configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS) // ✅ Usar enum
-                .map(Configuracion::getValor)
-                .map(v -> Arrays.stream(v.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .map(String::toLowerCase)
-                        .collect(Collectors.toList()))
-                .orElse(List.of());
+        log.info("🔍 [CONFIG] ==================== CONSULTANDO PALABRAS PROHIBIDAS ====================");
+        
+        try {
+            Optional<Configuracion> config = configuracionRepository.findByOpcion(Configuracion.Opcion.FILTRO_PALABRAS);
+            
+            if (config.isEmpty()) {
+                log.error("❌ [CONFIG] ¡CRÍTICO! No existe registro de FILTRO_PALABRAS en la tabla configuracion");
+                log.error("❌ [CONFIG] Ejecuta este SQL: INSERT INTO configuracion (opcion, valor) VALUES ('FILTRO_PALABRAS', 'droga,arma,estafa,ilegal');");
+                return List.of();
+            }
+            
+            String valor = config.get().getValor();
+            log.info("📋 [CONFIG] Valor raw de BD: '{}'", valor);
+            
+            if (valor == null || valor.trim().isEmpty()) {
+                log.error("❌ [CONFIG] El valor de FILTRO_PALABRAS está vacío o NULL");
+                return List.of();
+            }
+            
+            List<String> palabras = Arrays.stream(valor.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toList());
+            
+            log.info("✅ [CONFIG] Palabras procesadas: {}", palabras);
+            log.info("✅ [CONFIG] Total palabras: {}", palabras.size());
+            log.info("✅ [CONFIG] ==================== CONSULTA COMPLETADA ====================");
+            
+            return palabras;
+            
+        } catch (Exception e) {
+            log.error("❌ [CONFIG] ERROR al consultar palabras prohibidas: {}", e.getMessage(), e);
+            return List.of();
+        }
     }
 
     /**

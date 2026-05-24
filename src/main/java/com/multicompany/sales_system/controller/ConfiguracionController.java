@@ -6,12 +6,14 @@ import com.multicompany.sales_system.dto.configuracion.DiasExpiracionResponseDTO
 import com.multicompany.sales_system.dto.configuracion.EliminarPalabraRequestDTO;
 import com.multicompany.sales_system.dto.configuracion.PalabrasProhibidasResponseDTO;
 import com.multicompany.sales_system.service.ConfiguracionService;
+import com.multicompany.sales_system.service.DetectorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controlador para gestionar configuraciones del sistema.
@@ -23,6 +25,7 @@ import java.util.List;
 public class ConfiguracionController {
 
     private final ConfiguracionService configuracionService;
+    private final DetectorService detectorService;
 
     /**
      * Obtiene la cantidad de días configurados para la expiración de productos.
@@ -63,6 +66,7 @@ public class ConfiguracionController {
         
         return ResponseEntity.ok(response);
     }
+
 
     /**
      * Obtiene la lista de palabras prohibidas.
@@ -125,6 +129,42 @@ public class ConfiguracionController {
         );
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Forzar recarga del detector de palabras prohibidas.
+     * Útil cuando se actualizan palabras directamente en BD.
+     * 
+     * POST /api/configuracion/reload-detector
+     * 
+     * @return Información del estado del detector
+     */
+    @PostMapping("/reload-detector")
+    public ResponseEntity<Map<String, Object>> reloadDetector() {
+        detectorService.reload();
+        Map<String, Object> estado = detectorService.getEstado();
+        return ResponseEntity.ok(estado);
+    }
+
+    /**
+     * Obtener estado actual del detector.
+     * Útil para debugging en producción.
+     * 
+     * GET /api/configuracion/detector-estado
+     * 
+     * @return Información del estado del detector
+     */
+    @GetMapping("/detector-estado")
+    public ResponseEntity<Map<String, Object>> getDetectorEstado() {
+        Map<String, Object> estado = detectorService.getEstado();
+        return ResponseEntity.ok(estado);
+    }
+
+    // ========================= MANEJO DE EXCEPCIONES =========================
+    
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
     }
 
 }

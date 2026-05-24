@@ -15,6 +15,7 @@ import com.multicompany.sales_system.service.ProductService;
 import com.multicompany.sales_system.service.DetectorService;
 import com.multicompany.sales_system.service.IncidenciaService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
@@ -81,18 +83,39 @@ public class ProductServiceImpl implements ProductService {
 
         // Guardar y validar
         Producto savedProduct = productRepository.save(producto);
+        
+        // 🔍 DEBUG: Verificar contenido prohibido
+        log.info("🔍 [DEBUG] Iniciando validación de contenido para producto ID: {}", savedProduct.getIdProducto());
+        log.info("🔍 [DEBUG] Nombre: '{}'", savedProduct.getNombre());
+        log.info("🔍 [DEBUG] Descripción: '{}'", savedProduct.getDescripcion());
+        
         boolean contieneProhibidas = validarYProcesarContenido(savedProduct, productRequestDTO);
+        log.info("🔍 [DEBUG] Resultado validación - Contiene prohibidas: {}", contieneProhibidas);
 
         if (contieneProhibidas) {
+            // Obtener las palabras específicas detectadas
+            String contenidoCompleto = (savedProduct.getNombre() != null ? savedProduct.getNombre() : "") + " " +
+                    (savedProduct.getDescripcion() != null ? savedProduct.getDescripcion() : "");
+            List<String> palabrasEncontradas = detectorService.findMatchedWords(contenidoCompleto);
+            
+            log.warn("⚠️ [PROHIBIDO] Producto {} contiene palabras prohibidas: {}", 
+                     savedProduct.getIdProducto(), palabrasEncontradas);
+            log.warn("⚠️ [PROHIBIDO] Cambiando estado a OCULTO y desactivando disponibilidad");
+            
             savedProduct.setEstado(EstadoProducto.OCULTO);
             savedProduct.setDisponibilidad(false);
         } else {
+            log.info("✅ [APROBADO] Producto {} no contiene palabras prohibidas. Estado: ACTIVO", 
+                     savedProduct.getIdProducto());
             savedProduct.setEstado(EstadoProducto.ACTIVO);
         }
 
         savedProduct = productRepository.save(savedProduct);
+        log.info("💾 [GUARDADO] Producto {} guardado con estado: {}", 
+                 savedProduct.getIdProducto(), savedProduct.getEstado());
 
         if (contieneProhibidas) {
+            log.info("📝 [INCIDENCIA] Creando incidencia automática para producto {}", savedProduct.getIdProducto());
             crearIncidenciaAutomatica(savedProduct);
         }
         // Si el tipo es SERVICIO, crear la entidad Servicio con el horario provisto
@@ -352,7 +375,19 @@ public class ProductServiceImpl implements ProductService {
     private boolean validarYProcesarContenido(Producto producto, ProductRequestDTO requestDTO) {
         String contenidoCompleto = (requestDTO.getNombre() != null ? requestDTO.getNombre() : "") + " " +
                 (requestDTO.getDescripcion() != null ? requestDTO.getDescripcion() : "");
-        return detectorService.containsProhibited(contenidoCompleto);
+        
+        log.debug("🔍 [VALIDAR] Contenido a validar: '{}'", contenidoCompleto);
+        
+        boolean resultado = detectorService.containsProhibited(contenidoCompleto);
+        
+        if (resultado) {
+            List<String> palabrasEncontradas = detectorService.findMatchedWords(contenidoCompleto);
+            log.debug("🔍 [VALIDAR] Palabras encontradas: {}", palabrasEncontradas);
+        } else {
+            log.debug("🔍 [VALIDAR] No se encontraron palabras prohibidas");
+        }
+        
+        return resultado;
     }
 
     private void crearIncidenciaAutomatica(Producto producto) {
