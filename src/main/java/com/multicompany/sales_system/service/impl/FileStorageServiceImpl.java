@@ -1,0 +1,217 @@
+package com.multicompany.sales_system.service.impl;
+
+import com.multicompany.sales_system.service.FileStorageService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+@Service
+@Slf4j
+public class FileStorageServiceImpl implements FileStorageService {
+
+    private final Path fileStorageLocation;
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "webp");
+    private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList(
+            "image/jpeg", "image/png", "image/gif", "image/webp");
+
+    /**
+     * Constructor que recibe la ruta de almacenamiento desde configuración.
+     * Permite adaptarse a diferentes entornos (local, cloud, Docker).
+     * 
+     * @param uploadDir Path configurable desde application.properties o variables de entorno
+     */
+    public FileStorageServiceImpl(@Value("${file.upload-dir}") String uploadDir) {
+        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+
+        try {
+            // Crear directorio si no existe
+            Files.createDirectories(this.fileStorageLocation);
+            log.info("✅ Directorio de almacenamiento configurado: {}", this.fileStorageLocation);
+            
+            // Validar permisos de escritura (no fallar si Railway aún no montó el volumen)
+            if (!Files.isWritable(this.fileStorageLocation)) {
+                log.warn("⚠️ El directorio no tiene permisos de escritura aún: {}", this.fileStorageLocation);
+                log.warn("⚠️ Esto puede ser temporal si Railway está montando el volumen...");
+                // NO lanzar excepción - verificar permisos al intentar guardar archivo
+            } else {
+                log.info("✅ Permisos de escritura verificados correctamente");
+            }
+            
+        } catch (IOException ex) {
+            log.error("❌ Error al crear directorio de almacenamiento: {}", uploadDir, ex);
+            throw new RuntimeException("No se pudo crear el directorio de almacenamiento: " + uploadDir, ex);
+        }
+    }
+
+    @Override
+    public String storeFile(MultipartFile file, Long productId) throws IOException {
+        // Validar que el archivo no esté vacío
+        if (file.isEmpty()) {
+            throw new RuntimeException("El archivo está vacío");
+        }
+
+        // Validar que sea una imagen
+        if (!isValidImage(file)) {
+            throw new RuntimeException("El archivo debe ser una imagen válida (JPG, PNG, GIF, WEBP)");
+        }
+
+        // Validar el tamaño
+        if (!isValidSize(file)) {
+            throw new RuntimeException("El archivo excede el tamaño máximo permitido de 10MB");
+        }
+
+        // Asegurar que el directorio existe y tiene permisos correctos
+        ensureDirectoryExistsAndWritable();
+
+        // Obtener la extensión del archivo original
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+        String fileExtension = "";
+
+        if (originalFilename.contains(".")) {
+            fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+
+        // Generar nombre único para el archivo: producto_{productId}_{uuid}.{extension}
+        String newFilename = "producto_" + productId + "_" + UUID.randomUUID().toString() + fileExtension;
+
+        // Copiar archivo a la ubicación de destino
+        Path targetLocation = this.fileStorageLocation.resolve(newFilename);
+        
+        try {
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            log.info("✅ Archivo guardado exitosamente: {}", newFilename);
+        } catch (IOException e) {
+            log.error("❌ Error al guardar archivo. Directorio: {}, Archivo: {}", this.fileStorageLocation, newFilename);
+            log.error("Permisos del directorio: readable={}, writable={}, executable={}", 
+                Files.isReadable(this.fileStorageLocation),
+                Files.isWritable(this.fileStorageLocation),
+                Files.isExecutable(this.fileStorageLocation));
+            throw new IOException("No se pudo guardar el archivo: " + e.getMessage(), e);
+        }
+
+        return newFilename;
+    }
+    
+    /**
+     * Asegura que el directorio de almacenamiento existe y tiene permisos de escritura.
+     * Intenta crear el directorio y ajustar permisos si es necesario.
+     */
+    private void ensureDirectoryExistsAndWritable() throws IOException {
+        // Crear directorio si no existe
+        if (!Files.exists(this.fileStorageLocation)) {
+            log.info("📁 Creando directorio de almacenamiento: {}", this.fileStorageLocation);
+            Files.createDirectories(this.fileStorageLocation);
+        }
+        
+        // Verificar permisos de escritura
+        if (!Files.isWritable(this.fileStorageLocation)) {
+            log.error("❌ El directorio no tiene permisos de escritura: {}", this.fileStorageLocation);
+            
+            // Intentar ajustar permisos en sistemas POSIX (Linux/Railway)
+            try {
+                Set<PosixFilePermission> perms = new HashSet<>();
+                perms.add(PosixFilePermission.OWNER_READ);
+                perms.add(PosixFilePermission.OWNER_WRITE);
+                perms.add(PosixFilePermission.OWNER_EXECUTE);
+                perms.add(PosixFilePermission.GROUP_READ);
+                perms.add(PosixFilePermission.GROUP_WRITE);
+                perms.add(PosixFilePermission.GROUP_EXECUTE);
+                
+                Files.setPosixFilePermissions(this.fileStorageLocation, perms);
+                log.info("✅ Permisos POSIX ajustados correctamente (rwxrwx---)");
+                
+            } catch (UnsupportedOperationException e) {
+                log.warn("⚠️ Sistema de archivos no soporta permisos POSIX (probablemente Windows)");
+            } catch (IOException e) {
+                log.error("❌ No se pudieron ajustar los permisos: {}", e.getMessage());
+            }
+            
+            // Verificar nuevamente después de intentar ajustar
+            if (!Files.isWritable(this.fileStorageLocation)) {
+                throw new IOException("El directorio no tiene permisos de escritura y no se pudieron ajustar: " + this.fileStorageLocation);
+            }
+        }
+    }
+
+    @Override
+    public Resource loadFileAsResource(String filename) throws IOException {
+        try {
+            Path filePath = this.fileStorageLocation.resolve(filename).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            } else {
+                throw new RuntimeException("Archivo no encontrado: " + filename);
+            }
+        } catch (MalformedURLException ex) {
+            throw new RuntimeException("Archivo no encontrado: " + filename, ex);
+        }
+    }
+
+    @Override
+    public void deleteFile(String filename) throws IOException {
+        if (filename == null || filename.trim().isEmpty()) {
+            return;
+        }
+
+        try {
+            Path filePath = this.fileStorageLocation.resolve(filename).normalize();
+            Files.deleteIfExists(filePath);
+            log.info("Archivo eliminado exitosamente: {}", filename);
+        } catch (IOException ex) {
+            log.error("Error al eliminar el archivo: {}", filename, ex);
+            throw new RuntimeException("No se pudo eliminar el archivo: " + filename, ex);
+        }
+    }
+
+    @Override
+    public boolean isValidImage(MultipartFile file) {
+        // Validar por content type
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            return false;
+        }
+
+        // Validar por extensión del archivo
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isEmpty()) {
+            return false;
+        }
+
+        String extension = "";
+        if (originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        }
+
+        return ALLOWED_EXTENSIONS.contains(extension);
+    }
+
+    @Override
+    public boolean isValidSize(MultipartFile file) {
+        return file.getSize() <= MAX_FILE_SIZE;
+    }
+
+    @Override
+    public Path getStorageLocation() {
+        return this.fileStorageLocation;
+    }
+}
